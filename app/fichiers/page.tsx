@@ -374,7 +374,7 @@ function FichiersPage() {
                     toast.error('Erreur lors du téléchargement du fichier');
                   }
                 }}
-                onDelete={async (id) => {
+                onDelete={async (id: string) => {
                   if (window.confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
                     try {
                       const { error } = await supabase
@@ -392,7 +392,7 @@ function FichiersPage() {
                     }
                   }
                 }}
-                onStatusChange={async (id, statut) => {
+                onStatusChange={async (id: string, statut: 'actif' | 'inactif') => {
                   try {
                     const { error } = await supabase
                       .from('fichiers_import')

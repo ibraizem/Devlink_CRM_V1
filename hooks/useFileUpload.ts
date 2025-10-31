@@ -158,9 +158,10 @@ export const useFileUpload = (userId: string) => {
       // Le fichier est déjà enregistré via uploadFile, donc pas besoin de saveFileMetadata séparé
       const savedFile = uploadedFile;
 
-      // 4. Importer les données
+      // 4. Importer les données et mettre à jour les métadonnées
       const { rowCount } = await fileService.importData(file, mapping, { 
-        sheetIndex 
+        sheetIndex,
+        fileId: savedFile.id // Passer l'ID du fichier pour la mise à jour des métadonnées
       });
 
       options.onProgress?.(100);

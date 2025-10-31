@@ -503,10 +503,29 @@ export const fileService = {
   importData: async (
     file: File, 
     mapping: Record<string, string>, 
-    options?: { sheetIndex?: number }
+    options?: { sheetIndex?: number, fileId?: string }
   ): Promise<{ rowCount: number }> => {
+    // Lire et mapper les données du fichier
     const jsonData = await fileService.readFileAsJson(file, options?.sheetIndex);
     const mappedData = fileService.mapData(jsonData, mapping);
+    
+    // Mettre à jour les métadonnées du fichier dans la base de données
+    if (options?.fileId) {
+      try {
+        await supabase
+          .from('fichiers_import')
+          .update({ 
+            nb_lignes: jsonData.length,
+            nb_lignes_importees: mappedData.length,
+            mapping_colonnes: mapping,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', options.fileId);
+      } catch (updateError) {
+        console.error('Erreur lors de la mise à jour des métadonnées du fichier:', updateError);
+        // Ne pas échouer l'importation si la mise à jour des métadonnées échoue
+      }
+    }
     
     // Ici, vous pouvez ajouter la logique pour enregistrer les données dans votre base de données
     // Par exemple :

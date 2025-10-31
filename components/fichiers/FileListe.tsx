@@ -68,23 +68,26 @@ interface FileListeProps {
   onEdit: (fichier: FichierImport) => void;
   onDownload: (fichier: FichierImport) => void;
   onDelete: (id: string) => void;
-  onStatusChange: (id: string, statut: 'actif' | 'inactif') => void;
+  onStatusChange?: (id: string, statut: 'actif' | 'inactif') => void;
   onPreview?: (fichier: FichierImport) => void;
   loadingStates: Record<string, boolean>;
-  fileLineCounts?: Record<string, number>; // Ajout de la propriété manquante
+  fileLineCounts?: Record<string, number>;
 }
 
 export function FichiersDataTable({
   fichiers,
-  isLoading,
   onRefresh,
   onEdit,
   onDownload,
   onDelete,
   onStatusChange,
   onPreview,
-  loadingStates
+  loadingStates = {},
+  fileLineCounts = {},
+  isLoading = false,
 }: FileListeProps) {
+  // Log pour déboguer les données reçues
+  console.log('Fichiers reçus dans FileListe:', fichiers);
   const [previewFile, setPreviewFile] = useState<FichierImport | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -116,6 +119,7 @@ export function FichiersDataTable({
     if (onPreview) {
       onPreview(file);
     } else {
+      setPreviewFile(adaptToPreviewFile(file));
       setIsPreviewOpen(true);
     }
   };
@@ -125,8 +129,13 @@ export function FichiersDataTable({
       {
         accessorKey: 'nom',
         header: 'Nom du fichier',
-        cell: ({ row }: { row: { original: FichierImport } }) => {
+        cell: ({ row }) => {
           const fichier = row.original;
+          const mapping = fichier.mapping_colonnes || {};
+          const nbColonnes = typeof mapping === 'object' && mapping !== null 
+            ? Object.keys(mapping).length 
+            : 0;
+          
           return (
             <div className="flex items-center space-x-3 group">
               <div className="flex-shrink-0 p-2 bg-blue-50 rounded-lg text-[#2563EB]">
@@ -135,7 +144,7 @@ export function FichiersDataTable({
               <div className="flex flex-col">
                 <span className="font-medium text-gray-900 group-hover:text-[#2563EB] transition-colors duration-200">{fichier.nom}</span>
                 <span className="text-xs text-gray-500">
-                  {fichier.mapping_colonnes ? Object.keys(fichier.mapping_colonnes).length : 0} colonnes mappées
+                  {nbColonnes} colonne{nbColonnes > 1 ? 's' : ''} mappée{nbColonnes > 1 ? 's' : ''}
                 </span>
               </div>
             </div>
@@ -143,14 +152,24 @@ export function FichiersDataTable({
         },
       },
       {
-        accessorKey: 'nb_lignes',
+        accessorKey: 'lignes',
         header: 'Lignes',
         cell: ({ row }: { row: { original: FichierImport } }) => {
           const fichier = row.original;
-          const totalCount = fichier.metadata?.rowCount || fichier.nb_lignes || 0;
+          // Utiliser nb_lignes comme source principale, avec une valeur par défaut de 0
+          const totalLignes = fichier.nb_lignes || 0;
+          const lignesImportees = fichier.nb_lignes_importees || 0;
+          
           return (
             <div className="flex items-center">
-              <span className="font-medium">{totalCount.toLocaleString('fr-FR')}</span>
+              <span className="font-medium text-gray-900">
+                {totalLignes.toLocaleString('fr-FR')}
+                {lignesImportees > 0 && (
+                  <span className="text-xs text-gray-500 ml-1">
+                    ({lignesImportees.toLocaleString('fr-FR')} importée{lignesImportees > 1 ? 's' : ''})
+                  </span>
+                )}
+              </span>
             </div>
           );
         },
@@ -219,7 +238,9 @@ export function FichiersDataTable({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onStatusChange(fichier.id, fichier.statut === 'actif' ? 'inactif' : 'actif');
+                  if (onStatusChange) {
+                    onStatusChange(fichier.id, fichier.statut === 'actif' ? 'inactif' : 'actif');
+                  }
                 }}
                 title={fichier.statut === 'actif' ? 'Désactiver' : 'Activer'}
                 disabled={isLoading}
@@ -251,9 +272,9 @@ export function FichiersDataTable({
             </div>
           );
         },
-      },
+      }
     ],
-    [loadingStates, onDelete, onDownload, onEdit, onPreview, onStatusChange]
+    [onDelete, onDownload, onEdit, onStatusChange, onPreview, loadingStates, fileLineCounts]
   );
 
   return (
