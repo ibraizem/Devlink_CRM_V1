@@ -1,8 +1,11 @@
 // hooks/useFileUpload.ts
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { fileService } from '@/lib/services/fileService';
-import { FileData, FileImportResult, SheetInfo } from '@/lib/types/file.types';
+import { ImportService } from '@/lib/services/ImportService';
+import { FileManagementService } from '@/lib/services/FileManagementService';
+import { useSyncService } from '@/hooks/useSyncService';
+import { FileImportResult, SheetInfo } from '@/lib/types/file.types';
+import { useLeads } from './useLeads';
 
 // Define the expected options type for the file service
 interface FileServiceUploadOptions {
@@ -20,6 +23,8 @@ export const useFileUpload = (userId: string) => {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const abortController = useRef<AbortController | null>(null);
+  const { refreshLeads } = useLeads();
+  const syncService = useSyncService();
 
   // Réinitialiser l'état
   const reset = useCallback(() => {
@@ -57,7 +62,7 @@ export const useFileUpload = (userId: string) => {
   // Lire les en-têtes du fichier
   const readFileHeaders = useCallback(async (file: File) => {
     try {
-      const sheets = await fileService.readFileHeaders(file);
+      const sheets = await ImportService.readFileHeaders(file);
       setAvailableSheets(sheets);
       
       if (sheets.length > 0) {
@@ -127,7 +132,7 @@ export const useFileUpload = (userId: string) => {
         abortSignal: abortController.current?.signal
       };
 
-      const uploadedFile = await fileService.uploadFile(file, uploadOptions);
+      const uploadedFile = await FileManagementService.uploadFile(file, uploadOptions);
       
       // 3. Préparer les métadonnées du fichier
       const sheetIndex = options.sheetIndex !== undefined ? options.sheetIndex : selectedSheetIndex;
@@ -159,10 +164,17 @@ export const useFileUpload = (userId: string) => {
       const savedFile = uploadedFile;
 
       // 4. Importer les données et mettre à jour les métadonnées
-      const { rowCount } = await fileService.importData(file, mapping, { 
-        sheetIndex,
-        fileId: savedFile.id // Passer l'ID du fichier pour la mise à jour des métadonnées
+      const mappedData = await ImportService.readFileAsJson(file, sheetIndex);
+      const leadsData = ImportService.mapData(mappedData, mapping);
+      const rowCount = leadsData.length;
+      
+      const importResult = await ImportService.importData(leadsData, savedFile.id, { 
+        userId: options.userId,
+        onProgress: options.onProgress
       });
+      if (leadsData.length > 0 && importResult.success > 0) {
+        console.log(`${importResult.success} leads importés avec succès`);
+      }
 
       options.onProgress?.(100);
       
@@ -181,7 +193,29 @@ export const useFileUpload = (userId: string) => {
       setIsUploading(false);
       abortController.current = null;
     }
-  }, [availableSheets, headers, mapping, readFileHeaders, selectedSheetIndex, userId]);
+  }, [availableSheets, headers, mapping, readFileHeaders, selectedSheetIndex, userId, refreshLeads]);
+
+  // Associer un fichier à des campagnes
+  const associateWithCampaigns = useCallback(async (fileId: string, campaignIds: string[]): Promise<void> => {
+    try {
+      const promises = campaignIds.map(campaignId =>
+        syncService.linkFileToCampaign(fileId, campaignId)
+      );
+      
+      const results = await Promise.all(promises);
+      const errors = results.filter(result => !result.success);
+      
+      if (errors.length > 0) {
+        throw new Error(`Erreur lors de l'association à ${errors.length} campagne(s)`);
+      }
+      
+      toast.success(`Fichier associé à ${campaignIds.length} campagne(s) avec succès`);
+    } catch (error) {
+      console.error('Erreur lors de l\'association aux campagnes:', error);
+      toast.error('Erreur lors de l\'association aux campagnes');
+      throw error;
+    }
+  }, [syncService]);
 
   return {
     // États
@@ -201,6 +235,20 @@ export const useFileUpload = (userId: string) => {
     reset,
     readFileHeaders,
     setHeaders,
-    setAvailableSheets
+    setAvailableSheets,
+    associateWithCampaigns,
+    
+    // Nouvelles méthodes de synchronisation
+    syncFile: syncService.manualSyncFile,
+    getFileStats: syncService.getFileStatistics,
+    getFileCampaigns: syncService.getFileCampaigns,
+    getCampaignFiles: syncService.getCampaignFiles,
+    getSyncLogs: syncService.getSyncLogs,
+    unlinkFromCampaign: syncService.unlinkFileFromCampaign,
+    
+    // État de synchronisation
+    isSyncing: syncService.isLoading,
+    syncError: syncService.error,
+    clearSyncError: syncService.clearError
   };
 };

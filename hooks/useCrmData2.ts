@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { leadService, LeadData } from '@/lib/services/leadService';
-import { fileService, FichierImport } from '@/lib/services/fileService';
+import { FichierImport } from '@/lib/types/fichier';
 import { useAuth } from './useAuth';
-import { createClient } from '@/lib/utils/supabase/client';
-
-const supabase = createClient();
+import { supabase } from '@/lib/supabase/client';
 
 export type LeadStatus = 'nouveau' | 'en_cours' | 'traite' | 'abandonne';
 
@@ -164,27 +161,43 @@ export function useCrmData(): UseCrmDataReturn {
             continue;
           }
 
-          // Parser le fichier en fonction de son type
-          let parsedData: any[] = [];
-          
-          try {
-            if ((file.mime_type && file.mime_type === 'text/csv') || (file.chemin && file.chemin.endsWith('.csv'))) {
+          // Fonction utilitaire pour traiter les lignes CSV
+  const processLines = (lines: string[], headers: string[]): Record<string, any>[] => {
+    return lines.map(line => {
+      const values = line.split(',');
+      return headers.reduce((obj: Record<string, any>, header: string, index: number) => {
+        obj[header] = values[index]?.trim() || '';
+        return obj;
+      }, {} as Record<string, any>);
+    });
+  };
+
+  // Parser le fichier en fonction de son type
+  let parsedData: Record<string, any>[] = [];
+  
+  // Récupérer le type MIME en toute sécurité
+  const fileMimeType = file.mime_type || '';
+  const fileExtension = file.chemin ? file.chemin.split('.').pop()?.toLowerCase() : '';
+  
+  try {
+            // Vérifier si c'est un fichier CSV
+            if ((fileMimeType === 'text/csv' || fileExtension === 'csv')) {
               const text = await fileData.text();
               // Parser le CSV
               const lines = text.split('\n').filter(line => line.trim() !== '');
               if (lines.length >= 2) {
                 const headers = lines[0].split(',').map(h => h.trim());
-                parsedData = lines.slice(1).map(line => {
-                  const values = line.split(',').map(v => v.trim());
-                  return headers.reduce((obj, header, index) => {
-                    obj[header] = values[index] || '';
-                    return obj;
-                  }, {} as Record<string, string>);
-                });
+                parsedData = processLines(lines.slice(1), headers);
               }
-            } else if (
-              (file.mime_type && (file.mime_type.includes('spreadsheetml') || file.mime_type.includes('excel'))) ||
-              (file.chemin && (file.chemin.endsWith('.xlsx') || file.chemin.endsWith('.xls')))
+            } 
+            // Vérifier si c'est un fichier Excel
+            else if (
+              (fileMimeType.includes('spreadsheetml') || 
+               fileMimeType.includes('excel') ||
+               fileMimeType.includes('xlsx') ||
+               fileMimeType.includes('xls') ||
+               fileExtension === 'xlsx' || 
+               fileExtension === 'xls')
             ) {
               try {
                 // Importer dynamiquement xlsx uniquement si nécessaire
@@ -209,7 +222,7 @@ export function useCrmData(): UseCrmDataReturn {
                 throw new Error(`Erreur lors de la lecture du fichier Excel: ${errorMessage}`);
               }
             } else {
-              console.warn(`Format de fichier non supporté: ${file.mime_type}`);
+              console.warn(`Format de fichier non supporté: ${fileMimeType || fileExtension || 'inconnu'}`);
             }
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Format de fichier non supporté ou corrompu';

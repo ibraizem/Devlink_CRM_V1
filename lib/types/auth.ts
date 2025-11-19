@@ -1,7 +1,6 @@
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export async function signIn(email: string, password: string) {
-  const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -9,8 +8,7 @@ export async function signIn(email: string, password: string) {
   return { data, error };
 }
 
-export async function signUp(email: string, password: string, nom: string, prenom: string, role: 'admin' | 'manager' | 'telepro' = 'telepro') {
-  const supabase = createClient();
+export async function signUp(email: string, password: string, nom: string, prenom: string, role: 'admin' | 'manager' | 'commercial' = 'admin') {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -36,24 +34,22 @@ export async function signUp(email: string, password: string, nom: string, preno
 }
 
 export async function signOut() {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  await supabase.auth.signOut();
+  return { error: null };
 }
 
 export async function getCurrentUser() {
-  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
 
 export async function getUserProfile(userId: string) {
-  const supabase = createClient();
   const { data, error } = await supabase
     .from('users_profile')
     .select('*')
     .eq('id', userId)
-    .maybeSingle();
+    .single();
 
-  return { data, error };
+  if (error) throw error;
+  return data;
 }

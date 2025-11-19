@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Mail, MessageSquare, Phone, MapPin, Twitter, Linkedin, Github, Zap, ArrowRight } from 'lucide-react';
+import { Mail, Phone, MapPin, Twitter, Linkedin, ArrowRight, Github } from 'lucide-react';
 
 function Footer() {
   const currentYear = new Date().getFullYear();
@@ -62,16 +62,16 @@ function Footer() {
             >
               <Link href="/" className="flex items-center space-x-2 group">
                 <motion.span 
-                  className="text-2xl font-extrabold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 bg-clip-text text-transparent"
+                  className="text-xl font-extrabold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 bg-clip-text text-transparent"
                   whileHover={{ 
                     backgroundImage: 'linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)',
                     transition: { duration: 0.5 }
                   }}
                 >
-                  DevLink CRM
+                  DevLink
                 </motion.span>
                 <motion.span 
-                  className="absolute right-16 -top-1 text-xs font-bold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 text-white px-2 py-0.5 rounded-full"
+                  className="absolute left-20 -top-1 text-xs font-bold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 text-white px-2 py-0.5 rounded-full"
                   animate={{ 
                     scale: [1, 1.10, 1],
                     rotate: [1, 5, -5, 0],
@@ -83,7 +83,7 @@ function Footer() {
                     ease: 'easeInOut'
                   }}
                 >
-                  PRO
+                  CRM
                 </motion.span>
               </Link>
             </motion.div>

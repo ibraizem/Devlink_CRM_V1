@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -23,7 +23,7 @@ export function useActiveFile() {
   const [activeFile, setActiveFile] = useState<ActiveFileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  // Utilisation de l'instance supabase importée
 
   const fetchActiveFile = async () => {
     let file;

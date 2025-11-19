@@ -1,6 +1,8 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
-import { Lead, SortDirection } from '@/types/leads';
+import { Lead } from '@/lib/types/leads';
+
+type SortDirection = 'asc' | 'desc';
 
 export function useLeadsTable<T extends Lead>(initialData: T[] = []) {
   const [search, setSearch] = useState('');
@@ -59,12 +61,10 @@ export function useLeadsTable<T extends Lead>(initialData: T[] = []) {
 
   const toggleSort = useCallback((key: keyof T) => {
     setSortKey(prevKey => {
-      // If clicking the same key, toggle direction
       if (prevKey === key) {
-        setSortDir(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
+        setSortDir((prevDir: SortDirection) => (prevDir === 'asc' ? 'desc' : 'asc'));
         return key;
       }
-      // New key, default to ascending
       setSortDir('asc');
       return key;
     });

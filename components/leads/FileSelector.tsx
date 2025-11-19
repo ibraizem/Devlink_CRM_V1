@@ -40,30 +40,34 @@ const FileSelector = ({
           {files.map((file) => (
             <div
               key={file.id}
-              className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors cursor-pointer ${
+              className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors ${
                 selectedFiles.includes(file.id)
                   ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
                   : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
-              onClick={() => onFileToggle(file.id)}
             >
               <Checkbox
                 checked={selectedFiles.includes(file.id)}
                 onCheckedChange={() => onFileToggle(file.id)}
               />
               
-              <FileText className="h-4 w-4 text-slate-500" />
-              
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-slate-900 dark:text-white">
-                  {file.nom}
-                </span>
-                <div className="flex items-center space-x-2 text-xs text-slate-500">
-                  <span>{file.nb_lignes_importees || 0} leads</span>
-                  <span>•</span>
-                  <span>
-                    {new Date(file.created_at).toLocaleDateString('fr-FR')}
+              <div 
+                className="flex items-center space-x-2 flex-1 cursor-pointer"
+                onClick={() => onFileToggle(file.id)}
+              >
+                <FileText className="h-4 w-4 text-slate-500" />
+                
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">
+                    {file.nom}
                   </span>
+                  <div className="flex items-center space-x-2 text-xs text-slate-500">
+                    <span>{file.nb_lignes_importees || 0} leads</span>
+                    <span>•</span>
+                    <span>
+                      {new Date(file.created_at).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
                 </div>
               </div>
               

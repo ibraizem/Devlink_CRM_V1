@@ -8,10 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Trash2, MoreVertical, Eye, FileDown } from 'lucide-react';
+import { Download, Trash2, MoreVertical, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 interface FileActionsProps {
   file: FileData;
@@ -21,7 +21,6 @@ interface FileActionsProps {
 export function FileActions({ file, onDelete }: FileActionsProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
 
   const handleDownload = async () => {
     try {

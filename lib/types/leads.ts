@@ -1,13 +1,41 @@
-export type Lead = { [key: string]: any };
-type LeadFilters = {
-  statut?: string;
-  agent_id?: string;
-  search?: string;
-};
-import { createClient } from '@/lib/utils/supabase/client';
+import { DatabaseLead, DatabaseLeadAction, LeadFilters } from './database';
+
+export interface Lead extends DatabaseLead {
+  fichier?: {
+    id: string;
+    nom: string;
+    date_import: string;
+    user_id: string;
+  };
+}
+
+export interface LeadAction extends DatabaseLeadAction {
+  lead?: Lead;
+  creator?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export type LeadStatus = 'nouveau' | 'en_cours' | 'traite' | 'abandonne';
+
+// Réexporter LeadFilters pour utilisation dans les hooks et services
+export type { LeadFilters };
+
+export interface ColumnDefinition<T> {
+  key: keyof T | string;
+  header: string;
+  sortable?: boolean;
+  render?: (value: any, row: T) => React.ReactNode;
+  className?: string;
+}
+
+
+import { createClient } from '@/lib/supabase/server';
 
 export async function getLeads(filters?: LeadFilters) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   let query = supabase.from('leads').select('*, users_profile:agent_id(nom, prenom)');
   if (filters?.statut) {
     query = query.eq('statut', filters.statut);
@@ -23,7 +51,7 @@ export async function getLeads(filters?: LeadFilters) {
 }
 
 export async function getLeadById(id: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom, email)')
@@ -33,7 +61,7 @@ export async function getLeadById(id: string) {
 }
 
 export async function createLead(lead: Partial<Lead>) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .insert(lead)
@@ -41,10 +69,10 @@ export async function createLead(lead: Partial<Lead>) {
     .single();
   if (data && !error) {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
+    await supabase.from('lead_actions').insert({
       lead_id: data.id,
       agent_id: user?.id,
-      type_action: 'lead_assigne',
+      type: 'lead_assigne',
       description: 'Lead créé',
       metadata: { lead_data: lead },
     });
@@ -53,7 +81,7 @@ export async function createLead(lead: Partial<Lead>) {
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .update(updates)
@@ -62,10 +90,10 @@ export async function updateLead(id: string, updates: Partial<Lead>) {
     .single();
   if (data && !error && updates.statut) {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
+    await supabase.from('lead_actions').insert({
       lead_id: data.id,
       agent_id: user?.id,
-      type_action: 'statut_change',
+      type: 'statut_change',
       description: `Statut changé en ${updates.statut}`,
       metadata: { old_statut: data.statut, new_statut: updates.statut },
     });
@@ -74,7 +102,7 @@ export async function updateLead(id: string, updates: Partial<Lead>) {
 }
 
 export async function deleteLead(id: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { error } = await supabase
     .from('leads')
     .delete()
@@ -83,7 +111,7 @@ export async function deleteLead(id: string) {
 }
 
 export async function getLeadNotes(leadId: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('notes')
     .select('*, users_profile:auteur_id(nom, prenom)')
@@ -93,7 +121,7 @@ export async function getLeadNotes(leadId: string) {
 }
 
 export async function createNote(leadId: string, contenu: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('notes')
@@ -105,10 +133,10 @@ export async function createNote(leadId: string, contenu: string) {
     .select()
     .single();
   if (data && !error) {
-    await supabase.from('historique_actions').insert({
+    await supabase.from('lead_actions').insert({
       lead_id: leadId,
       agent_id: user?.id,
-      type_action: 'note',
+      type: 'note',
       description: 'Note ajoutée',
       metadata: { note_id: data.id },
     });
@@ -117,9 +145,9 @@ export async function createNote(leadId: string, contenu: string) {
 }
 
 export async function getLeadHistory(leadId: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
-    .from('historique_actions')
+    .from('lead_actions')
     .select('*, users_profile:agent_id(nom, prenom)')
     .eq('lead_id', leadId)
     .order('created_at', { ascending: false });
@@ -127,7 +155,7 @@ export async function getLeadHistory(leadId: string) {
 }
 
 export async function getLeadRendezvous(leadId: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('rendezvous')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -137,7 +165,7 @@ export async function getLeadRendezvous(leadId: string) {
 }
 
 export async function assignLeadToAgent(leadId: string, agentId: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .update({ agent_id: agentId })
@@ -146,10 +174,10 @@ export async function assignLeadToAgent(leadId: string, agentId: string) {
     .single();
   if (data && !error) {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
+    await supabase.from('lead_actions').insert({
       lead_id: leadId,
       agent_id: user?.id, // L'agent qui fait l'assignation
-      type_action: 'lead_assigne',
+      type: 'lead_assigne',
       description: `Lead assigné à l'agent ${agentId}`,
       metadata: { new_agent_id: agentId },
     });
@@ -158,24 +186,24 @@ export async function assignLeadToAgent(leadId: string, agentId: string) {
 }
 
 export async function getAgents() {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('users_profile')
     .select('id, nom, prenom')
     .eq('actif', true)
-    .in('role', ['telepro', 'manager', 'admin'])
+    .in('role', ['commercial', 'manager', 'admin'])
     .order('nom', { ascending: true });
   return { data, error };
 }
 
 export async function getLeadStatistics() {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase.rpc('get_lead_statistics');
   return { data, error };
 }
 
 export async function getLeadsByAgent(agentId: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -185,7 +213,7 @@ export async function getLeadsByAgent(agentId: string) {
 }
 
 export async function getRecentLeads(limit: number = 5) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -195,7 +223,7 @@ export async function getRecentLeads(limit: number = 5) {
 }
 
 export async function getLeadsByStatus(statut: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -205,7 +233,7 @@ export async function getLeadsByStatus(statut: string) {
 }
 
 export async function getLeadsCountByStatus() {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('statut, count:id')
@@ -215,7 +243,7 @@ export async function getLeadsCountByStatus() {
 }
 
 export async function getLeadsCreatedBetween(startDate: string, endDate: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -226,7 +254,7 @@ export async function getLeadsCreatedBetween(startDate: string, endDate: string)
 }
 
 export async function getLeadsWithUpcomingRendezvous() {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, rendezvous!inner(*)')
@@ -236,7 +264,7 @@ export async function getLeadsWithUpcomingRendezvous() {
 }
 
 export async function getLeadsByCanal(canal: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -246,7 +274,7 @@ export async function getLeadsByCanal(canal: string) {
 }
 
 export async function getLeadsBySource(source: string) {
-  const supabase = createClient();
+  const supabase = createClient(cookies());
   const { data, error } = await supabase
     .from('leads')
     .select('*, users_profile:agent_id(nom, prenom)')
@@ -254,3 +282,7 @@ export async function getLeadsBySource(source: string) {
     .order('created_at', { ascending: false });
   return { data, error };
 }
+function cookies(): import("next/dist/server/web/spec-extension/adapters/request-cookies").ReadonlyRequestCookies {
+  throw new Error('Function not implemented.');
+}
+

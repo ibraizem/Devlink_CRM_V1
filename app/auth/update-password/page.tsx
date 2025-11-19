@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { Loader2, Lock, CheckCircle } from 'lucide-react';
 import { AuthCard } from '@/components/auth/AuthCard';
 import Link from 'next/link';
@@ -21,7 +21,6 @@ function UpdatePasswordContent() {
 
   // Vérifier si le token est valide au chargement de la page
   useEffect(() => {
-    const supabase = createClient();
     const checkSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
@@ -70,7 +69,6 @@ function UpdatePasswordContent() {
     setMessage(null);
 
     try {
-      const supabase = createClient();
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -230,3 +228,4 @@ export default function UpdatePasswordPage() {
     </Suspense>
   );
 }
+

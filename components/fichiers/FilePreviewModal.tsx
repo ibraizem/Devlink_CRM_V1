@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -25,6 +25,9 @@ export function FilePreviewModal({ isOpen, onOpenChange, previewData }: FilePrev
       <DialogContent className="max-w-[95vw] max-h-[90vh] w-full flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="text-xl font-semibold">Aperçu des données</DialogTitle>
+          <DialogDescription className="sr-only">
+            Aperçu des premières lignes du fichier importé pour vérifier le format des données.
+          </DialogDescription>
           {previewData?.columns && (
             <p className="text-sm text-muted-foreground">
               {previewData.columns.length} colonnes • {previewData.data.length} lignes

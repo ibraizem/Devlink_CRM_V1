@@ -1,4 +1,3 @@
-// components/fichiers/FileUploader.tsx
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { FileMapping } from '@/components/fichiers/FileMapping';
 import { Check, FileText, Loader2, UploadCloud, X } from 'lucide-react';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useUser } from '@/hooks/useUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from 'sonner';
 
 type ImportStep = 'upload' | 'select-sheet' | 'mapping' | 'preview' | 'complete';
@@ -21,7 +20,7 @@ interface FileUploaderProps {
 }
 
 export function FileUploader({ onUploadComplete, className = '' }: FileUploaderProps) {
-  const { user } = useUser();
+  const { user } = useCurrentUser();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');

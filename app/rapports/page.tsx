@@ -3,14 +3,13 @@
 import { useEffect } from 'react';
 import  Sidebar from '@/components/Sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 export default function RapportsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -47,3 +46,7 @@ export default function RapportsPage() {
     </div>
   );
 }
+function cookies(): import("next/dist/server/web/spec-extension/adapters/request-cookies").ReadonlyRequestCookies {
+  throw new Error('Function not implemented.');
+}
+

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Star, Zap, ArrowRight } from "lucide-react";
+import { Check, Zap, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/types/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInView } from "react-intersection-observer";

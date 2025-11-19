@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import FileSelector from './FileSelector';
-import { LeadDataGrid } from './LeadDataGrid';
+import { FileUploader } from './DataTable';
 import MappingManager from './MappingManager';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Download } from 'lucide-react';
@@ -97,11 +97,16 @@ export function LeadsView({
 
       {/* Grille de données */}
       <div className="flex-1 overflow-hidden">
-        <LeadDataGrid
-          data={mergedLeads}
-          isLoading={isLoading}
-          onLeadAction={onLeadAction}
-          onStatusChange={onStatusUpdate}
+        <FileUploader
+          onUploadComplete={(result) => {
+            if (result.success) {
+              // Gérer le succès du téléchargement
+              console.log('Fichier téléchargé avec succès:', result.fileId);
+            } else {
+              // Gérer l'erreur
+              console.error('Erreur lors du téléchargement:', result.error);
+            }
+          }}
         />
       </div>
     </div>

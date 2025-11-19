@@ -1,9 +1,8 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Download, Columns, Search, Filter, RefreshCw } from 'lucide-react';
+import { Download, Columns, Search, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ColumnDefinition } from '@/types/leads';
 
 interface ColumnOption {
   key: string;

@@ -1,21 +1,6 @@
-export interface FichierImport {
-  chemin_fichier: any;
-  mime_type: string;
-  id: string;
-  nom: string;
-  chemin: string;
-  statut: 'actif' | 'inactif' | 'en_cours' | 'erreur';
-  date_import: string;
-  nb_lignes: number;
-  nb_lignes_importees: number;
-  mapping_colonnes: Record<string, string>;
-  separateur: string;
-  original_filename: string;
-  taille: number;
-  type: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
+import { DatabaseFichierImport } from './database';
+
+export interface FichierImport extends Omit<DatabaseFichierImport, 'metadata'> {
   metadata?: {
     fileType?: string;
     originalName?: string;
@@ -23,6 +8,14 @@ export interface FichierImport {
     rowCount?: number;
     fileSize?: number;
     mimeType?: string;
+    // Métadonnées d'importation multicanal
+    totalLeads?: number;
+    qualityScore?: number;
+    validLeads?: number;
+    detectedChannels?: string[];
+    categoryDistribution?: Record<string, number>;
+    importStatus?: 'success' | 'partial' | 'error';
+    importMessage?: string;
     [key: string]: any;
   };
 }

@@ -1,11 +1,11 @@
 // app/fichiers/services/fileService.ts
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { FichierImport } from '@/lib/types/fichier';
 import { SheetInfo } from '@/lib/types/file.types';
+import { FileFilters, ApiResponse } from '@/lib/types/database';
 import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
 
-const supabase = createClient();
 const BUCKET_NAME = 'fichiers';
 
 // Vérifier et créer le dossier utilisateur dans le bucket
@@ -77,6 +77,562 @@ export interface CustomColumn {
 }
 
 export const fileService = {
+  // ====================================
+  // IMPORT MULTICANAL AVEC DÉTECTION AUTOMATIQUE
+  // ====================================
+
+  /**
+   * Import multicanal avec détection automatique des sources et catégorisation
+   */
+  importMultiChannel: async (file: File, options: {
+    detectChannel?: boolean;
+    autoCategorize?: boolean;
+    enrichFromExternal?: boolean;
+    userId: string;
+    onProgress?: (progress: number) => void;
+  }): Promise<{
+    channels: string[];
+    categorizedLeads: any[];
+    qualityScore: number;
+    importSummary: {
+      totalLeads: number;
+      validLeads: number;
+      invalidLeads: number;
+      duplicates: number;
+      categories: Record<string, number>;
+    };
+  }> => {
+    try {
+      console.log('🚀 Début de l\'import multicanal...');
+      
+      // 1. Lire et analyser le fichier
+      const fileData = await fileService.readFileHeaders(file);
+      if (!fileData || fileData.length === 0) {
+        throw new Error('Impossible de lire le fichier ou fichier vide');
+      }
+
+      const sheet = fileData[0];
+      const headers = sheet.headers;
+      
+      // Lire les données complètes du fichier
+      const data = await fileService.readFileAsJson(file, 0);
+      if (!data || data.length <= 1) { // La première ligne contient les en-têtes
+        throw new Error('Fichier vide ou sans données valides');
+      }
+      
+      // Extraire les données (exclure la ligne d'en-têtes)
+      const rowData = data.slice(1);
+
+      // 2. Détection automatique des canaux
+      const detectedChannels = options.detectChannel 
+        ? await fileService.detectChannels(headers, rowData)
+        : ['email']; // Par défaut
+
+      console.log('📡 Canaux détectés:', detectedChannels);
+
+      // 3. Catégorisation automatique des leads
+      const categorizedLeads = options.autoCategorize
+        ? await fileService.categorizeLeads(rowData, headers, detectedChannels)
+        : rowData.map((row, index) => ({ id: index, data: row, category: 'non_catégorisé', channels: detectedChannels }));
+
+      // 4. Validation et nettoyage des données
+      const { validLeads, invalidLeads, duplicates } = await fileService.validateAndCleanLeads(
+        categorizedLeads,
+        headers
+      );
+
+      // 5. Calcul du score de qualité
+      const qualityScore = fileService.calculateQualityScore(validLeads ?? [], invalidLeads ?? [], duplicates ?? []);
+
+      // 6. Enrichissement externe si demandé
+      if (options.enrichFromExternal && validLeads) {
+        await fileService.enrichLeadsFromExternal(validLeads);
+      }
+
+      // 7. Créer le fichier avec les métadonnées multicanal
+      const fileRecord = await fileService.uploadFile(file, {
+        user_id: options.userId,
+        onProgress: options.onProgress
+      });
+
+      // 8. Mettre à jour les métadonnées avec les informations multicanal
+      if (fileRecord?.id) {
+        await fileService.updateFileMetadata(fileRecord.id, {
+          channels: detectedChannels,
+          categories: fileService.getCategoryStats(categorizedLeads),
+          qualityScore,
+          importType: 'multichannel'
+        });
+      }
+
+      // 9. Insérer les leads valides avec les informations de canal
+      if (validLeads && fileRecord?.id) {
+        await fileService.insertLeadsWithChannelInfo(validLeads, fileRecord.id, detectedChannels);
+      }
+
+      const importSummary = {
+        totalLeads: data.length,
+        validLeads: validLeads?.length ?? 0,
+        invalidLeads: invalidLeads?.length ?? 0,
+        duplicates: duplicates?.length ?? 0,
+        categories: fileService.getCategoryStats(categorizedLeads)
+      };
+
+      console.log('✅ Import multicanal terminé:', importSummary);
+
+      return {
+        channels: detectedChannels,
+        categorizedLeads: validLeads ?? [],
+        qualityScore,
+        importSummary
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'import multicanal:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Détecte automatiquement les canaux de communication disponibles
+   */
+  detectChannels: async (headers: string[] | undefined, data: any[]): Promise<string[]> => {
+    const channels = new Set<string>();
+    
+    // Détection basée sur les en-têtes
+    const channelPatterns = {
+      email: ['email', 'mail', 'e-mail', 'adresse email', 'courriel'],
+      phone: ['telephone', 'tel', 'phone', 'portable', 'mobile', 'téléphone'],
+      linkedin: ['linkedin', 'linked in', 'profile', 'profil'],
+      website: ['website', 'site', 'url', 'web', 'site web'],
+      sms: ['sms', 'text', 'portable', 'mobile'],
+      whatsapp: ['whatsapp', 'whatsapp number'],
+      facebook: ['facebook', 'fb', 'social'],
+      instagram: ['instagram', 'ig', 'insta'],
+      twitter: ['twitter', 'x', 'tweet']
+    };
+
+    // Normaliser les en-têtes pour la détection
+    const normalizedHeaders = (headers || []).map(h => h.toLowerCase().trim());
+    
+    normalizedHeaders.forEach((header, index) => {
+      Object.entries(channelPatterns).forEach(([channel, patterns]) => {
+        if (patterns.some(pattern => header.includes(pattern))) {
+          channels.add(channel);
+        }
+      });
+    });
+
+    // Détection basée sur les données (vérifier s'il y a des valeurs valides)
+    if (data.length > 0) {
+      Object.entries(channelPatterns).forEach(([channel, patterns]) => {
+        const headerIndex = normalizedHeaders.findIndex(h => 
+          patterns.some(pattern => h.includes(pattern))
+        );
+        
+        if (headerIndex !== -1) {
+          // Vérifier si les données dans cette colonne semblent valides
+          const sampleData = data.slice(0, 10).map(row => row[headerIndex]).filter(Boolean);
+          
+          if (sampleData.length > 0) {
+            // Validation basique selon le type de canal
+            const isValid = fileService.validateChannelData?.(channel, sampleData);
+            if (isValid) {
+              channels.add(channel);
+            }
+          }
+        }
+      });
+    }
+
+    return Array.from(channels);
+  },
+
+  /**
+   * Valide les données d'un canal spécifique
+   */
+  validateChannelData: (channel: string, sampleData: string[]): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    const urlRegex = /^https?:\/\/.+/i;
+
+    switch (channel) {
+      case 'email':
+        return sampleData.some(data => emailRegex.test(data));
+      case 'phone':
+      case 'sms':
+      case 'whatsapp':
+        return sampleData.some(data => phoneRegex.test(data) && data.length >= 10);
+      case 'linkedin':
+      case 'facebook':
+      case 'instagram':
+      case 'twitter':
+        return sampleData.some(data => 
+          data.toLowerCase().includes(channel) || 
+          urlRegex.test(data)
+        );
+      case 'website':
+        return sampleData.some(data => urlRegex.test(data));
+      default:
+        return sampleData.length > 0;
+    }
+  },
+
+  /**
+   * Catégorise automatiquement les leads selon leur profil
+   */
+  categorizeLeads: async (data: any[], headers: string[] | undefined, channels: string[]): Promise<any[]> => {
+    return data.map(row => {
+      const category = fileService.determineLeadCategory?.(row, headers, channels) ?? 'general';
+      const confidence = fileService.calculateCategoryConfidence?.(row, headers, category) ?? 0.5;
+      
+      return {
+        data: row,
+        category,
+        confidence,
+        channels: fileService.extractLeadChannels?.(row, headers, channels) ?? [],
+        priority: fileService.determineLeadPriority?.(row, headers, category) ?? 'low',
+        metadata: {
+          originalRow: row,
+          categorization: {
+            category,
+            confidence,
+            reasoning: fileService.getCategoryReasoning?.(row, headers, category) ?? 'Catégorisation par défaut'
+          }
+        }
+      };
+    });
+  },
+
+  /**
+   * Détermine la catégorie d'un lead
+   */
+  determineLeadCategory: (row: any[], headers: string[] | undefined, channels: string[]): string => {
+    const normalizedHeaders = (headers || []).map(h => h.toLowerCase().trim());
+    const normalizedRow = row.map(cell => String(cell || '').toLowerCase().trim());
+    
+    // Catégories B2B
+    const b2bIndicators = ['entreprise', 'company', 'société', 'sarl', 'sas', 'eurl', 'sa', 'business'];
+    const hasB2BIndicators = normalizedRow.some(cell => 
+      b2bIndicators.some(indicator => cell.includes(indicator))
+    );
+    
+    if (hasB2BIndicators) {
+      return 'b2b';
+    }
+
+    // Catégories par canal disponible
+    if (channels.includes('linkedin') && fileService.hasValidLinkedIn(row, headers || [])) {
+      return 'professional';
+    }
+    
+    if (channels.includes('phone') && channels.includes('email')) {
+      return 'multicanal';
+    }
+    
+    if (channels.includes('email')) {
+      return 'digital';
+    }
+
+    // Catégories par fonction/poste
+    const jobTitles = ['directeur', 'manager', 'chef', 'responsable', 'pdg', 'ceo', 'cto', 'directrice'];
+    const hasJobTitle = normalizedRow.some(cell => 
+      jobTitles.some(title => cell.includes(title))
+    );
+    
+    if (hasJobTitle) {
+      return 'decision_maker';
+    }
+
+    return 'general';
+  },
+
+  /**
+   * Vérifie si un lead a un LinkedIn valide
+   */
+  hasValidLinkedIn: (row: any[], headers: string[]): boolean => {
+    const linkedinIndex = (headers || []).findIndex(h => 
+      h.toLowerCase().includes('linkedin')
+    );
+    
+    if (linkedinIndex !== -1 && row[linkedinIndex]) {
+      const linkedinValue = String(row[linkedinIndex]).toLowerCase();
+      return linkedinValue.includes('linkedin.com') || linkedinValue.includes('linkedin');
+    }
+    
+    return false;
+  },
+
+  /**
+   * Calcule la confiance de la catégorisation
+   */
+  calculateCategoryConfidence: (row: any[], headers: string[] | undefined, category: string): number => {
+    let confidence = 0.5; // Base
+    
+    // Plus de données disponibles = plus de confiance
+    const nonEmptyCells = row.filter(cell => cell && String(cell).trim() !== '').length;
+    confidence += (nonEmptyCells / (headers?.length || 1)) * 0.3;
+    
+    // Certains canaux augmentent la confiance
+    const hasEmail = (headers || []).some((h, i) => 
+      h.toLowerCase().includes('email') && row[i] && String(row[i]).includes('@')
+    );
+    const hasPhone = (headers || []).some((h, i) => 
+      h.toLowerCase().includes('tel') && row[i] && String(row[i]).length >= 10
+    );
+    
+    if (hasEmail) confidence += 0.1;
+    if (hasPhone) confidence += 0.1;
+    
+    return Math.min(confidence, 1.0);
+  },
+
+  /**
+   * Extrait les canaux disponibles pour un lead
+   */
+  extractLeadChannels: (row: any[], headers: string[] | undefined, availableChannels: string[]): string[] => {
+    const leadChannels: string[] = [];
+    
+    availableChannels.forEach(channel => {
+      const hasChannel = (headers || []).some((header, index) => {
+        const headerLower = header.toLowerCase();
+        const cellValue = row[index];
+        
+        switch (channel) {
+          case 'email':
+            return headerLower.includes('email') && cellValue && String(cellValue).includes('@');
+          case 'phone':
+          case 'sms':
+          case 'whatsapp':
+            return headerLower.includes('tel') && cellValue && String(cellValue).length >= 10;
+          case 'linkedin':
+            return headerLower.includes('linkedin') && cellValue && String(cellValue).toLowerCase().includes('linkedin');
+          case 'website':
+            return headerLower.includes('website') && cellValue && String(cellValue).includes('http');
+          default:
+            return false;
+        }
+      });
+      
+      if (hasChannel) {
+        leadChannels.push(channel);
+      }
+    });
+    
+    return leadChannels;
+  },
+
+  /**
+   * Détermine la priorité d'un lead
+   */
+  determineLeadPriority: (row: any[], headers: string[] | undefined, category: string): 'high' | 'medium' | 'low' => {
+    let score = 0;
+    
+    // Score par catégorie
+    type CategoryType = 'b2b' | 'decision_maker' | 'multicanal' | 'professional' | 'digital' | 'general';
+    const categoryScores: Record<CategoryType, number> = {
+      'b2b': 3,
+      'decision_maker': 3,
+      'multicanal': 3,
+      'professional': 2,
+      'digital': 1,
+      'general': 0
+    };
+    
+    score += categoryScores[category as CategoryType] || 0;
+    
+    // Score par nombre de canaux
+    const nonEmptyCells = row.filter(cell => cell && String(cell).trim() !== '').length;
+    score += Math.min(nonEmptyCells / 3, 2);
+    
+    if (score >= 4) return 'high';
+    if (score >= 2) return 'medium';
+    return 'low';
+  },
+
+  /**
+   * Retourne la raison de la catégorisation
+   */
+  getCategoryReasoning: (row: any[], headers: string[] | undefined, category: string): string => {
+    type CategoryType = 'b2b' | 'decision_maker' | 'multicanal' | 'professional' | 'digital' | 'general';
+    const reasons: Record<CategoryType, string> = {
+      'b2b': 'Présence d\'indicateurs d\'entreprise (SAS, SARL, etc.)',
+      'decision_maker': 'Présence de titres de direction (PDG, Directeur, etc.)',
+      'multicanal': 'Disponibilité de plusieurs canaux de contact',
+      'professional': 'Profil LinkedIn détecté',
+      'digital': 'Contact principalement par email',
+      'general': 'Profil standard sans caractéristiques particulières'
+    };
+    
+    return reasons[category as CategoryType] || 'Catégorisation par défaut';
+  },
+
+  /**
+   * Valide et nettoie les leads
+   */
+  validateAndCleanLeads: async (categorizedLeads: any[], headers: string[] | undefined): Promise<{
+    validLeads: any[];
+    invalidLeads: any[];
+    duplicates: any[];
+  }> => {
+    const validLeads: any[] = [];
+    const invalidLeads: any[] = [];
+    const duplicates: any[] = [];
+    const seenEmails = new Set();
+    const seenPhones = new Set();
+    
+    categorizedLeads.forEach(lead => {
+      const email = fileService.extractValue(lead.data, headers, 'email');
+      const phone = fileService.extractValue(lead.data, headers, 'tel');
+      
+      // Vérification des doublons
+      if (email && seenEmails.has(email.toLowerCase())) {
+        duplicates.push(lead);
+        return;
+      }
+      if (phone && seenPhones.has(phone.replace(/\s/g, ''))) {
+        duplicates.push(lead);
+        return;
+      }
+      
+      // Validation minimale
+      const hasValidContact = (email && fileService.isValidEmail(email)) || 
+                             (phone && fileService.isValidPhone(phone));
+      
+      if (hasValidContact) {
+        validLeads.push(lead);
+        if (email) seenEmails.add(email.toLowerCase());
+        if (phone) seenPhones.add(phone.replace(/\s/g, ''));
+      } else {
+        invalidLeads.push(lead);
+      }
+    });
+    
+    return { validLeads, invalidLeads, duplicates };
+  },
+
+  /**
+   * Extrait une valeur selon le type de colonne
+   */
+  extractValue: (row: any[], headers: string[] | undefined, type: string): string => {
+    const index = (headers || []).findIndex(h => h.toLowerCase().includes(type));
+    return index !== -1 ? String(row[index] || '').trim() : '';
+  },
+
+  /**
+   * Valide un email
+   */
+  isValidEmail: (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  },
+
+  /**
+   * Valide un numéro de téléphone
+   */
+  isValidPhone: (phone: string): boolean => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  },
+
+  /**
+   * Calcule le score de qualité global
+   */
+  calculateQualityScore: (validLeads: any[], invalidLeads: any[], duplicates: any[]): number => {
+    const total = validLeads.length + invalidLeads.length + duplicates.length;
+    if (total === 0) return 0;
+    
+    const validRatio = validLeads.length / total;
+    const duplicatePenalty = duplicates.length / total * 0.5;
+    
+    return Math.max(0, Math.min(1, validRatio - duplicatePenalty));
+  },
+
+  /**
+   * Enrichit les leads depuis des sources externes (placeholder)
+   */
+  enrichLeadsFromExternal: async (leads: any[]): Promise<void> => {
+    // TODO: Implémenter l'enrichissement depuis des APIs externes
+    // - Clearbit, Hunter.io, etc.
+    console.log('🔄 Enrichissement externe (non implémenté)');
+  },
+
+  /**
+   * Met à jour les métadonnées du fichier avec les informations multicanal
+   */
+  updateFileMetadata: async (fileId: string, metadata: {
+    channels: string[];
+    categories: Record<string, number>;
+    qualityScore: number;
+    importType: string;
+  }): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('fichiers_import')
+        .update({
+          metadata: metadata,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', fileId);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des métadonnées:', error);
+    }
+  },
+
+  /**
+   * Insère les leads avec les informations de canal
+   */
+  insertLeadsWithChannelInfo: async (leads: any[], fileId: string, channels: string[]): Promise<void> => {
+    try {
+      const leadsToInsert = leads.map(lead => ({
+        id: crypto.randomUUID(),
+        nom: lead.data?.[0] || 'Inconnu',
+        prenom: lead.data?.[1] || '',
+        email: fileService.extractValue(lead.data, ['email', 'mail'], 'email'),
+        telephone: fileService.extractValue(lead.data, ['tel', 'phone'], 'tel'),
+        statut: 'nouveau',
+        campaign_id: null,
+        agent_id: null, // Sera défini plus tard
+        fichier_id: fileId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        source_import: 'multichannel',
+        metadata: {
+          category: lead.category,
+          confidence: lead.confidence,
+          priority: lead.priority,
+          channels: lead.channels,
+          channels_available: channels
+        }
+      }));
+
+      const { error } = await supabase
+        .from('leads')
+        .insert(leadsToInsert);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de l\'insertion des leads:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Calcule les statistiques par catégorie
+   */
+  getCategoryStats: (categorizedLeads: any[]): Record<string, number> => {
+    const stats: Record<string, number> = {};
+    
+    categorizedLeads.forEach(lead => {
+      const category = lead.category || 'unknown';
+      stats[category] = (stats[category] || 0) + 1;
+    });
+    
+    return stats;
+  },
+
   // ====================================
   // Gestion des fichiers
   // ====================================
@@ -190,6 +746,8 @@ export const fileService = {
         original_filename: file.name,
         taille: file.size,
         type: file.type,
+        // Ajouter le champ donnees requis
+        donnees: null
       });
 
       return fileRecord;
@@ -225,16 +783,17 @@ export const fileService = {
         mapping_colonnes: {}, // JSONB non-null avec valeur par défaut {}
         separateur: ',',
         
-        // Clé étrangère obligatoire
+        // Champs de l'interface FichierImport
         user_id: fileData.user_id,
-        
-        // Champs optionnels
+        chemin_fichier: fileData.chemin_fichier || fileData.chemin,
+        mime_type: fileData.mime_type || null,
         original_filename: fileData.original_filename || fileData.nom,
-        taille: fileData.taille || null,
+        taille: fileData.taille || 0,
         type: fileData.type || null,
         
         // Champs non inclus précédemment
-        metadata: null // Champ JSONB optionnel
+        metadata: null, // Champ JSONB optionnel
+        donnees: null // Champ JSONB optionnel pour les données du fichier
       };
       
       // Vérification des contraintes
@@ -289,9 +848,61 @@ export const fileService = {
   },
 
   /**
+   * Met à jour les données d'un fichier avec les leads pour déclencher le trigger
+   */
+  async updateFileWithLeadsData(fileId: string, leadsData: any[]): Promise<void> {
+    const { error } = await supabase.rpc('update_file_with_leads_data', {
+      p_file_id: fileId,
+      p_leads_data: leadsData
+    });
+    
+    if (error) throw error;
+  },
+
+  /**
+   * Synchronise manuellement tous les leads depuis les fichiers
+   */
+  async syncAllLeads(): Promise<number> {
+    try {
+      const { data, error } = await supabase.rpc('manual_sync_all_leads');
+      
+      if (error) {
+        console.warn('Fonction RPC manual_sync_all_leads non disponible:', error.message);
+        throw error;
+      }
+      
+      return data || 0;
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation des leads:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Synchronise les leads pour un fichier spécifique
+   */
+  async syncFileLeads(fileId: string): Promise<number> {
+    try {
+      const { data, error } = await supabase.rpc('manual_sync_file_leads', { 
+        p_file_id: fileId 
+      });
+      
+      if (error) {
+        console.warn('Fonction RPC manual_sync_file_leads non disponible:', error.message);
+        throw error;
+      }
+      
+      return data || 0;
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation des leads du fichier:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Met à jour le statut d'un fichier
    */
-  updateFileStatus: async (id: string, status: 'actif' | 'inactif' | 'supprime'): Promise<FichierImport> => {
+  updateFileStatus: async (id: string, status: 'actif' | 'inactif' | 'en_cours' | 'erreur'): Promise<FichierImport> => {
     const { data, error } = await supabase
       .from('fichiers_import')
       .update({ 
@@ -310,46 +921,13 @@ export const fileService = {
     return data;
   },
 
-  /**
-   * Supprime un fichier
-   */
-  deleteFile: async (id: string, filePath: string): Promise<void> => {
-    // Supprimer le fichier du stockage
-    const { error: storageError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .remove([filePath]);
-
-    if (storageError) {
-      console.error('Erreur lors de la suppression du fichier du stockage:', storageError);
-      throw storageError;
-    }
-
-    // Marquer comme supprimé dans la base de données
-    const { error: dbError } = await supabase
-      .from('fichiers_import')
-      .update({
-        statut: 'supprime',
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    if (dbError) {
-      console.error('Erreur lors de la mise à jour du statut de suppression:', dbError);
-      throw dbError;
-    }
-  },
-
-  /**
-   * Restaure un fichier supprimé
-   */
   restoreFile: async (id: string): Promise<FichierImport> => {
     const { data, error } = await supabase
       .from('fichiers_import')
       .update({
         statut: 'actif',
-        deleted_at: null,
         updated_at: new Date().toISOString(),
+        metadata: null
       })
       .eq('id', id)
       .select()
@@ -361,6 +939,82 @@ export const fileService = {
     }
 
     return data;
+  },
+
+  /**
+   * Supprime un fichier et toutes ses données associées
+   */
+  deleteFile: async (id: string, filePath: string): Promise<void> => {
+    try {
+      console.log(`Début de la suppression du fichier ${id}`);
+      
+      // 1. D'abord supprimer les leads associés si existants
+      const { error: leadsError } = await supabase
+        .from('leads')
+        .delete()
+        .eq('fichier_id', id);
+
+      if (leadsError) {
+        console.error('Erreur lors de la suppression des leads associés:', leadsError);
+        throw new Error(`Impossible de supprimer les leads: ${leadsError.message}`);
+      }
+      console.log('Leads supprimés avec succès');
+
+      // 2. Supprimer les logs de synchronisation (avant le fichier)
+      const { error: syncLogsError } = await supabase
+        .from('sync_logs')
+        .delete()
+        .eq('fichier_id', id);
+
+      if (syncLogsError) {
+        console.error('Erreur lors de la suppression des logs de synchronisation:', syncLogsError);
+        throw new Error(`Impossible de supprimer les logs: ${syncLogsError.message}`);
+      }
+      console.log('Logs de synchronisation supprimés avec succès');
+
+      // 3. Supprimer les associations avec les campagnes
+      const { error: campaignFilesError } = await supabase
+        .from('campaign_file_links')
+        .delete()
+        .eq('fichier_id', id);
+
+      if (campaignFilesError) {
+        console.error('Erreur lors de la suppression des associations de campagne:', campaignFilesError);
+        throw new Error(`Impossible de supprimer les associations: ${campaignFilesError.message}`);
+      }
+      console.log('Associations de campagne supprimées avec succès');
+
+      // 4. Supprimer le fichier du stockage
+      if (filePath) {
+        const { error: storageError } = await supabase.storage
+          .from(BUCKET_NAME)
+          .remove([filePath]);
+
+        if (storageError) {
+          console.error('Erreur lors de la suppression du fichier du stockage:', storageError);
+          // Continuer même si la suppression du stockage échoue
+          console.log('Continuation malgré l\'erreur de stockage');
+        } else {
+          console.log('Fichier du stockage supprimé avec succès');
+        }
+      }
+
+      // 5. Supprimer définitivement l'entrée de la table (suppression physique)
+      const { error: dbError } = await supabase
+        .from('fichiers_import')
+        .delete()
+        .eq('id', id);
+
+      if (dbError) {
+        console.error('Erreur lors de la suppression du fichier de la base:', dbError);
+        throw new Error(`Impossible de supprimer le fichier: ${dbError.message}`);
+      }
+
+      console.log(`Fichier ${id} supprimé avec succès`);
+    } catch (error) {
+      console.error('Erreur lors de la suppression du fichier:', error);
+      throw error;
+    }
   },
 
   // ====================================
@@ -563,7 +1217,7 @@ export const fileService = {
             const row = jsonData[i] as any[];
             const obj: Record<string, any> = {};
             
-            headers.forEach((header, index) => {
+            (headers || []).forEach((header, index) => {
               if (header && row[index] !== undefined) {
                 obj[header] = row[index];
               }
@@ -610,7 +1264,7 @@ export const fileService = {
       .from('fichiers_import')
       .update({ 
         mapping_colonnes: mapping,
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       })
       .eq('id', fileId)
       .select()
@@ -666,11 +1320,51 @@ export const fileService = {
       .download(filePath);
 
     if (error) {
-      console.error('Erreur lors du téléchargement du fichier:', error);
       throw new Error(`Erreur lors du téléchargement: ${error.message}`);
     }
 
     return data;
+  },
+
+  // ====================================
+  // Gestion des campagnes
+  // ====================================
+
+  
+  /**
+   * Associe une campagne à un fichier
+   */
+  associateCampaign: async (fileId: string, campaignId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('fichiers_import')
+        .update({ campagne_id: campaignId })
+        .eq('id', fileId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de l\'association de la campagne:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Récupère les informations de campagne d'un fichier
+   */
+  getFileCampaign: async (fileId: string): Promise<any> => {
+    try {
+      const { data, error } = await supabase
+        .from('fichiers_import')
+        .select('*, campaigns(*)')
+        .eq('id', fileId)
+        .single();
+
+      if (error) throw error;
+      return data?.campaigns || null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la campagne du fichier:', error);
+      throw error;
+    }
   }
 };
 

@@ -1,0 +1,3 @@
+-- Cette migration n'est plus nécessaire
+-- Le bucket user_avatars existe déjà dans Supabase
+-- Les politiques RLS sont déjà configurées via l'interface Supabase

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 type User = {
   id: string;
@@ -14,7 +15,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
+  // Utilisation de l'instance supabase importée
 
   useEffect(() => {
     // Vérifier la session actuelle
@@ -36,8 +37,7 @@ export function useAuth() {
     checkAuth();
 
     // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
         setUser(session?.user || null);
         
         // Rafraîchir la page après une connexion ou une déconnexion

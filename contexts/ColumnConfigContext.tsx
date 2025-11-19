@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import { DataTableProps } from '@/components/leads/DataTable';
 
 // Base type for our column definition that matches DataTable's requirements
 type BaseColumnDefinition = {
@@ -18,8 +17,8 @@ type ColumnDefinition = BaseColumnDefinition & {
   isVisible?: boolean;
   isCustom?: boolean;
 };
-import { userColumnsService, UserColumn } from '@/lib/api/leads/userColumns';
-import { createClient } from '@/lib/utils/supabase/client';
+import { userColumnsService, UserColumn } from '@/lib/services/userColumns';
+import { supabase } from '@/lib/supabase/client';
 
 interface ColumnConfigContextType {
   availableColumns: ColumnDefinition[];
@@ -51,14 +50,20 @@ export const ColumnConfigProvider = ({ children }: { children: ReactNode }) => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [customColumns, setCustomColumns] = useState<UserColumn[]>([]);
 
+  // Utilisation de l'instance supabase importée
+
   // Charger les colonnes au montage
   useEffect(() => {
     const loadColumns = async () => {
       try {
         setIsLoading(true);
         
+        // Récupérer l'utilisateur connecté
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
         // Charger les colonnes personnalisées depuis Supabase
-        const userColumns = await userColumnsService.getUserColumns();
+        const userColumns = await userColumnsService.getUserColumns(user.id);
         setCustomColumns(userColumns);
         
         // Combiner les colonnes par défaut et personnalisées
@@ -90,7 +95,7 @@ export const ColumnConfigProvider = ({ children }: { children: ReactNode }) => {
     loadColumns();
     
     // Écouter les changements d'authentification
-    const { data: { subscription } } = createClient().auth.onAuthStateChange(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       loadColumns();
     });
     
@@ -99,24 +104,20 @@ export const ColumnConfigProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const updateColumnVisibility = useCallback((newVisibleColumns: string[]) => {
-    setVisibleColumns(newVisibleColumns);
+  const updateColumnVisibility = useCallback((columns: string[]): void => {
+    setVisibleColumns(columns);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('visibleLeadColumns', JSON.stringify(newVisibleColumns));
+      localStorage.setItem('visibleLeadColumns', JSON.stringify(columns));
     }
   }, []);
 
   const resetToDefault = useCallback(async () => {
     try {
       // Supprimer toutes les colonnes personnalisées de l'utilisateur
-      const { data: { user } } = await createClient().auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { error } = await createClient()
-          .from('user_custom_columns')
-          .delete()
-          .eq('user_id', user.id);
-          
-        if (error) throw error;
+        const success = await userColumnsService.resetToDefault(user.id);
+        if (!success) throw new Error('Failed to reset columns');
       }
       
       // Réinitialiser les colonnes visibles
@@ -140,21 +141,27 @@ export const ColumnConfigProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
+      // Récupérer l'utilisateur connecté
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
       // Filtrer uniquement les colonnes personnalisées
       const customColumns = columns.filter(col => col.isCustom);
       
       // Synchroniser avec Supabase
-      const syncedColumns = await userColumnsService.syncUserColumns(customColumns);
+      const syncedColumns = await userColumnsService.syncUserColumns(customColumns, user.id);
       
       // Mettre à jour l'état local
       const mergedColumns = [...defaultColumns, ...syncedColumns];
       
       setAvailableColumns(mergedColumns);
       setCustomColumns(syncedColumns.map(col => ({
-        id: '', // L'ID sera généré par Supabase
-        user_id: '', // Sera défini par le service
-        column_name: col.key,
-        display_name: col.label,
+        id: col.key, // Utiliser la clé comme ID temporaire
+        user_id: user.id,
+        name: col.label,
+        key: col.key,
+        is_visible: col.isVisible ?? true,
+        order: 0, // L'ordre sera mis à jour plus tard
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })));

@@ -8,11 +8,10 @@ import { LeadsTableRow } from './LeadsTableRow';
 import { useLeadsTable } from '@/hooks/useLeadsTable';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 import { toast } from 'sonner';
-import { ColumnDefinition, Lead } from '@/types/leads';
+import { ColumnDefinition, Lead } from '@/lib/types/leads';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ColumnSelector } from './ColumnSelector';
-import { ChevronLeft, ChevronRight, SearchX, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SearchX } from 'lucide-react';
 import { NoteModal } from './NoteModal';
 import { EditLeadDrawer } from './EditLeadDrawer';
 import { leadService } from '@/lib/services/leadService';
@@ -43,7 +42,7 @@ export function RawLeadsTable<T extends Lead>({
   const columnOptions = useMemo(() => {
     return initialColumns.map((col) => ({
       key: String(col.key),
-      label: col.label || String(col.key)
+      label: col.header || String(col.key)
     }));
   }, [initialColumns]);
   
@@ -182,21 +181,27 @@ export function RawLeadsTable<T extends Lead>({
         </thead>
         <TableBody>
           {paginated.length > 0 ? (
-            paginated.map((row: T) => (
-              <LeadsTableRow<T>
-                key={row.id}
-                row={row}
-                isSelected={selected.has(row.id)}
-                onSelect={toggleSelect}
-                columns={visibleColumnsData}
-                onActions={{
-                  call: handleCall,
-                  note: handleNote,
-                  edit: handleEdit,
-                  delete: handleDelete,
-                }}
-              />
-            ))
+            paginated.map((row: T, index: number) => {
+              // Créer un ID unique pour chaque ligne en combinant l'ID existant avec l'index
+              // Cela garantit que même si l'ID est manquant ou en double, la clé sera unique
+              const uniqueKey = row?.id ? `${row.id}_${index}` : `row_${index}`;
+              
+              return (
+                <LeadsTableRow<T>
+                  key={uniqueKey}
+                  row={row}
+                  isSelected={selected.has(row.id)}
+                  onSelect={toggleSelect}
+                  columns={visibleColumnsData}
+                  onActions={{
+                    call: handleCall,
+                    note: handleNote,
+                    edit: handleEdit,
+                    delete: handleDelete,
+                  }}
+                />
+              );
+            })
           ) : (
             <tr>
               <td colSpan={visibleColumnsData.length + 1} className="text-center py-10 text-muted-foreground">

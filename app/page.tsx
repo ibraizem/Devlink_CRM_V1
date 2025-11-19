@@ -12,7 +12,7 @@ const Hero = dynamic(() => import('@/components/landing/Hero'), {
   loading: () => <div className="h-screen bg-blue-50" />
 });
 
-const Features = dynamic(() => import('@/components/landing/Features'), {
+const FeaturesDetailed = dynamic(() => import('@/components/landing/FeaturesDetailed'), {
   ssr: true
 });
 
@@ -41,7 +41,7 @@ export default function Home() {
         </Suspense>
         
         <Suspense fallback={<div className="py-20 bg-white"><div className="container mx-auto px-4">Chargement des fonctionnalités...</div></div>}>
-          <Features />
+          <FeaturesDetailed />
         </Suspense>
         
         <Suspense fallback={<div className="py-20 bg-gray-50"><div className="container mx-auto px-4">Chargement des offres...</div></div>}>

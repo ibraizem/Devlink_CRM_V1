@@ -1,11 +1,10 @@
 'use client';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 
 export function EditLeadDrawer({ open, onOpenChange, lead }: any) {
-  const supabase = createClient();
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   useEffect(() => {

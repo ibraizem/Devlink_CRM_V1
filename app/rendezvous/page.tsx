@@ -5,7 +5,7 @@ import  Sidebar from '@/components/Sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User } from 'lucide-react';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 export default function RendezvousPage() {
@@ -15,7 +15,6 @@ export default function RendezvousPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {

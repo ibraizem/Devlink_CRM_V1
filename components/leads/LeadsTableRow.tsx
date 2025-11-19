@@ -2,7 +2,7 @@
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LeadsTableActionsMenu } from './LeadsTableActionsMenu';
-import { ColumnDefinition } from '@/types/leads';
+import { ColumnDefinition } from '@/lib/types/leads';
 
 interface LeadsTableRowProps<T> {
   row: T;
@@ -39,9 +39,9 @@ export function LeadsTableRow<T extends { id: string }>({
         <TableCell 
           key={String(col.key)}
           className="truncate max-w-[200px]"
-          title={String(row[col.key] ?? '')}
+          title={String((row as any)[col.key] ?? '')}
         >
-          {row[col.key] != null ? String(row[col.key]) : '-'}
+          {(row as any)[col.key] != null ? String((row as any)[col.key]) : '-'}
         </TableCell>
       ))}
 

@@ -2,12 +2,15 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useBootstrapTeam } from '@/hooks/useBootstrapTeam';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { AuthCard } from '@/components/auth/AuthCard';
+import { userService } from '@/lib/services/userService';
 import { Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,13 +21,27 @@ function LoginContent() {
   const [error, setError] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
-  const supabase = createClient();
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const { bootstrapPendingTeam } = useBootstrapTeam();
+  const { toast } = useToast();
+  // Utilisation de l'instance partagée de Supabase côté client
 
   useEffect(() => {
-    // Laisser le middleware gérer la redirection
+      // Laisser le middleware gérer la redirection
     // pour éviter les conflits entre le client et le serveur
-  }, []);
+    // Vérification de la session existante
+    const checkSession = async () => {
+      console.log('Vérification de la session en cours...');
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Session trouvée:', session ? 'OUI' : 'NON');
+      if (session) {
+        console.log('Redirection vers:', redirectTo);
+        router.push(redirectTo);
+      }
+    };
+    
+    checkSession();
+  }, [router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +50,7 @@ function LoginContent() {
 
     try {
       console.log('Tentative de connexion avec:', email);
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -46,6 +63,30 @@ function LoginContent() {
       }
 
       console.log('Connexion réussie, redirection vers:', redirectTo);
+      
+      // Enregistrement de l'activité de connexion
+      if (authData?.user) {
+        try {
+await userService.logActivity(authData.user.id, 'login', {
+            ip_address: null, // Vous pouvez ajouter l'IP ici si nécessaire
+            user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : null,
+          });
+          console.log('Activité de connexion enregistrée');
+          // Bootstrap de l'équipe si un teamName a été saisi durant l'onboarding
+          try {
+            const created = await bootstrapPendingTeam(authData.user.id);
+            if (created) {
+              toast({
+                title: 'Équipe créée avec succès',
+                description: 'Votre équipe a été initialisée automatiquement.',
+              })
+            }
+          } catch (_) {}
+        } catch (activityError) {
+          console.error('Erreur lors de l\'enregistrement de l\'activité:', activityError);
+          // On continue même en cas d'erreur d'enregistrement de l'activité
+        }
+      }
       
       // Navigation côté client pour éviter le rechargement complet
       router.push(redirectTo);
@@ -219,3 +260,4 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+

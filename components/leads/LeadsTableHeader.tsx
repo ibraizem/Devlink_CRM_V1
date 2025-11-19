@@ -1,7 +1,7 @@
 'use client';
 import { TableHead, TableRow } from '@/components/ui/table';
 import { ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { ColumnDefinition } from '@/types/leads';
+import { ColumnDefinition } from '@/lib/types/leads';
 
 interface LeadsTableHeaderProps<T> {
   columns: Array<ColumnDefinition<T>>;
@@ -26,7 +26,7 @@ export function LeadsTableHeader<T>({
           onClick={() => onSort(String(col.key))}
         >
           <div className="flex items-center justify-between">
-            {col.label}
+            {col.header}
             {sortKey === col.key ? (
               sortDir === 'asc' ? (
                 <ChevronUp className="h-4 w-4" />

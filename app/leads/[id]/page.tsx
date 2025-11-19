@@ -13,15 +13,13 @@ import { Phone, Mail, Building2, ArrowLeft, Pencil, Trash2, Plus, Users, Home, C
 import dynamic from 'next/dynamic';
 import { useToast } from '@/hooks/use-toast';
 import { leadService, LeadStatus } from '@/lib/services/leadService';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 // Chargement dynamique de la Sidebar
 const Sidebar = dynamic(() => import('@/components/Sidebar'), {
   ssr: false,
   loading: () => <div>Chargement de la barre latérale...</div>
 });
-
-const supabase = createClient();
 
 interface Note {
   id: string;
@@ -64,7 +62,7 @@ export default function LeadDetailPage() {
         setIsLoading(true);
         // Get lead data from the database
         const { data: leadData, error: leadError } = await supabase
-          .from('fichier_donnees')
+          .from('fichiers_import')
           .select('*, fichier:fichier_id(*)')
           .eq('id', leadId)
           .single();

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/types/utils';
-import { Menu, X, ArrowRight, User, Rocket } from 'lucide-react';
+import { Menu, X, ArrowRight, User, Rocket, Play } from 'lucide-react';
 
 // Animation variants
 import type { Variants, Transition } from 'framer-motion';
@@ -107,13 +107,13 @@ function Navbar() {
           >
             <Link href="/" className="flex items-center space-x-2 group">
               <motion.span 
-                className="text-2xl font-extrabold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 bg-clip-text text-transparent"
+                className="text-xl font-extrabold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 bg-clip-text text-transparent"
                 whileHover={{ 
                   backgroundImage: 'linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)',
                   transition: { duration: 0.5 }
                 }}
               >
-                DevLink CRM
+                DevLink
               </motion.span>
               <motion.span 
                 className="absolute -right-12 -top-1 text-xs font-bold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 text-white px-2 py-0.5 rounded-full"
@@ -128,14 +128,14 @@ function Navbar() {
                   ease: 'easeInOut'
                 }}
               >
-                PRO
+                CRM
               </motion.span>
             </Link>
           </motion.div>
         </div>
 
         {/* Navigation centrée */}
-        <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
+        <div className="hidden md:flex items-center justify-center flex-1">
           <nav className="flex items-center space-x-1 lg:space-x-6">
             {links.map((link, index) => (
               <motion.div
@@ -150,7 +150,7 @@ function Navbar() {
                   href={link.href}
                   className="relative px-4 py-2.5 text-base font-medium text-blue-900 hover:text-blue-700 transition-all duration-300 rounded-lg group"
                 >
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="flex justify-start items-center gap-2">
                     <span className="text-base transition-transform duration-300 group-hover:scale-110">{link.icon}</span>
                     <span className="relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-blue-500 after:scale-x-0 after:origin-left after:transition-transform after:duration-300 group-hover:after:scale-x-100">
                       {link.label}
@@ -164,7 +164,27 @@ function Navbar() {
         </div>
 
         {/* Boutons à droite */}
-        <div className="hidden md:flex items-center space-x-3">
+        <div className="hidden md:flex space-x-4">
+          <motion.div 
+            whileHover={{ 
+              scale: 1.03,
+              boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.4), 0 10px 10px -5px rgba(59, 130, 246, 0.2)'
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              variant="outline"
+              asChild
+              className="group relative overflow-hidden border-2 border-blue-500 text-blue-700 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-600 px-6 py-2.5 text-sm font-medium transition-all duration-300 rounded-lg bg-white/80 backdrop-blur-sm"
+            >
+              <Link href="https://calendly.com/votre-compte" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <Play className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+                <span>Demander une démo</span>
+                <span className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-blue-600/20 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              </Link>
+            </Button>
+          </motion.div>
+          
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
             <Button
               variant="ghost"
@@ -297,6 +317,16 @@ function Navbar() {
                   <Link href="/auth/login">
                     <User className="h-4 w-4" />
                     <span>Connexion</span>
+                  </Link>
+                </Button>
+                <Button 
+                  asChild 
+                  variant="outline"
+                  className="w-full justify-center gap-2 border-2 border-blue-500 text-blue-700 hover:bg-blue-50 hover:text-blue-800 bg-white/80 backdrop-blur-sm"
+                >
+                  <Link href="https://calendly.com/votre-compte" target="_blank" rel="noopener noreferrer">
+                    <Play className="h-4 w-4" />
+                    <span>Demander une démo</span>
                   </Link>
                 </Button>
                 <Button 

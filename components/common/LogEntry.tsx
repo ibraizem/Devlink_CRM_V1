@@ -1,8 +1,11 @@
-import { StatusBadge, StatusType } from './StatusBadge';
+import { StatusBadge } from './StatusBadge';
+import type { VariantProps } from 'class-variance-authority';
+
+type StatusVariant = VariantProps<typeof StatusBadge>['variant'];
 
 interface LogEntryProps {
   message: string;
-  type?: StatusType;
+  type?: StatusVariant;
   timestamp?: Date;
 }
 
@@ -72,7 +75,7 @@ export function LogEntry({ message, type = 'info', timestamp = new Date() }: Log
     <div className={`p-3 rounded-lg border ${getContainerClasses()}`}>
       <div className="flex">
         <div className="shrink-0">
-          <StatusBadge type={type}>
+          <StatusBadge variant={type}>
             {getTypeLabel()}
           </StatusBadge>
         </div>

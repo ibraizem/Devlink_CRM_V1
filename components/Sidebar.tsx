@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/types/utils';
-import { Home, Users, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp } from 'lucide-react';
+import { Home, Target, Users2, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,7 +33,7 @@ const MenuItem = memo(forwardRef<HTMLAnchorElement, MenuItemProps>(({
   return (
     <motion.div 
       className={cn(
-        'relative mx-2 mb-1 rounded-xl overflow-hidden',
+        'relative mx-2 mb-2 rounded-xl overflow-hidden',
         isCollapsed ? 'w-10' : 'w-[calc(100%-1rem)]'
       )}
       whileHover={{ scale: 1.02 }}
@@ -45,12 +45,12 @@ const MenuItem = memo(forwardRef<HTMLAnchorElement, MenuItemProps>(({
         onClick={onClick}
         className={cn(
           'relative overflow-hidden',
-          'flex items-center py-3 text-sm font-medium rounded-xl transition-all duration-200',
-          'justify-start px-4',
+          'flex items-center py-2.5 text-sm font-medium rounded-xl transition-all duration-200',
+          'justify-start',
           isActive && !isCollapsed
             ? 'text-blue-600 dark:text-white bg-blue-50 dark:bg-blue-900/20 shadow-md'
             : 'text-gray-700 hover:bg-white hover:shadow-md dark:text-gray-300 dark:hover:bg-gray-800',
-          isCollapsed ? 'justify-center px-0 w-10' : 'w-full',
+          isCollapsed ? 'justify-center px-0 w-10' : 'px-3 w-full',
           'group relative overflow-hidden'
         )}
       >
@@ -68,19 +68,17 @@ const MenuItem = memo(forwardRef<HTMLAnchorElement, MenuItemProps>(({
         
         <motion.div 
           className={cn(
-            'relative z-10 flex items-center justify-center rounded-xl p-2',
+            'relative z-10 flex items-center justify-center rounded-lg p-2',
             isActive 
               ? isCollapsed 
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-white' 
                 : 'text-blue-600 dark:text-white bg-blue-500/10'
               : 'text-gray-600 hover:bg-blue-50 dark:text-gray-300 dark:hover:bg-blue-900/20',
-            isCollapsed ? 'w-9 h-9' : 'w-9 h-9 mr-3',
+            isCollapsed ? 'w-8 h-8' : 'w-8 h-8 mr-3',
             'transition-colors duration-200'
           )}
-          whileHover={!isActive ? { scale: 1.05 } : {}}
-          transition={{ type: 'spring', stiffness: 400, damping: 10 }}
         >
-          <item.icon className="h-5 w-5" />
+          <item.icon className="h-4 w-4" />
         </motion.div>
         
         <motion.span 
@@ -166,14 +164,8 @@ const useRippleEffect = (ref: React.RefObject<HTMLElement>) => {
   }, [createRipple, ref]);
 };
 
-// Chargement dynamique du composant UserMenu
-const UserMenu = dynamic<{ isCollapsed: boolean }>(
-  () => import('@/components/user/UserMenu'),
-  { 
-    ssr: false,
-    loading: () => <div className="h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
-  }
-);
+// Import direct du composant UserMenu
+import UserMenu from '@/components/user/UserMenu';
 
 const menuItems = [
   { 
@@ -183,10 +175,16 @@ const menuItems = [
     gradient: 'from-blue-500 to-blue-600'
   },
   { 
-    icon: Users, 
+    icon: Target, 
     label: 'Leads', 
     href: '/leads',
     gradient: 'from-emerald-500 to-teal-600'
+  },
+  { 
+    icon: Megaphone, 
+    label: 'Campagnes', 
+    href: '/campagnes',
+    gradient: 'from-rose-500 to-pink-600'
   },
   { 
     icon: FileUp, 
@@ -199,6 +197,12 @@ const menuItems = [
     label: 'Rendez-vous', 
     href: '/rendezvous',
     gradient: 'from-purple-500 to-indigo-600'
+  },
+  { 
+    icon: Users2, 
+    label: 'Équipes', 
+    href: '/equipes',
+    gradient: 'from-cyan-500 to-blue-600'
   },
   { 
     icon: FileText, 
@@ -351,7 +355,7 @@ function Sidebar() {
       {isMobile && mobileMenuButton}
       <motion.div 
         className={cn(
-          "flex flex-col h-screen bg-gradient-to-b from-white to-blue-50 border-r border-blue-100 fixed md:relative z-40 shadow-lg",
+          "flex flex-col h-screen bg-gradient-to-b from-white to-blue-50 border-r border-blue-100 fixed md:relative z-40 shadow-lg overflow-hidden",
           isCollapsed ? "w-16" : "w-64",
           isMobile && !isMobileOpen && "-translate-x-full"
         )}
@@ -384,11 +388,25 @@ function Sidebar() {
             <div className="flex items-center">
               {isCollapsed && (
                 <motion.div
-                  className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-md mx-auto"
+                  className="flex items-center justify-center h-12 w-12 rounded-xl mx-auto"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span className="text-white font-bold text-xl">D</span>
+                  <motion.span 
+                    className="absolute text-xs font-bold bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500 text-white px-2 py-0.5 rounded-full"
+                    animate={{ 
+                      scale: [1, 1.10, 1],
+                      rotate: [1, 5, -5, 0],
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      repeatType: 'reverse',
+                      ease: 'easeInOut'
+                    }}
+                  >
+                    CRM
+                  </motion.span>
                 </motion.div>
               )}
               <div className="relative">
@@ -400,7 +418,7 @@ function Sidebar() {
                   <motion.span 
                     className="text-xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-950 to-blue-500"
                   >
-                    DevLink CRM
+                    DevLink
                   </motion.span>
                 </div>
                 {!isCollapsed && (
@@ -417,7 +435,7 @@ function Sidebar() {
                       ease: 'easeInOut'
                     }}
                   >
-                    PRO
+                    CRM
                   </motion.span>
                 )}
               </div>
@@ -431,9 +449,9 @@ function Sidebar() {
 
         {/* Menu principal */}
         <nav className={cn(
-          "flex-1 px-2 py-4 space-y-1",
+          "flex-1 px-1 py-3 space-y-1",
           isCollapsed ? "overflow-y-visible" : "overflow-y-auto custom-scrollbar"
-        )}>
+        )} style={{ maxHeight: 'calc(100vh - 160px)' }}>
           {menuItems.map((menuItem) => {
             const isActive = pathname === menuItem.href;
             return (
@@ -451,7 +469,7 @@ function Sidebar() {
         {/* Menu utilisateur */}
         <motion.div 
           className={cn(
-            'p-4 mt-auto border-t border-blue-100',
+            'p-4 mt-auto border-t border-blue-100 flex-shrink-0',
             isCollapsed ? 'px-2' : 'px-4'
           )}
           initial={false}
@@ -463,6 +481,7 @@ function Sidebar() {
             stiffness: 300,
             damping: 30,
           }}
+          style={{ minHeight: '80px' }}
         >
           <UserMenu isCollapsed={isCollapsed} />
         </motion.div>

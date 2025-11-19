@@ -1,6 +1,36 @@
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
+import type { Lead } from '@/lib/types/leads';
+import type { LeadFilters, ApiResponse, PaginatedResponse } from '@/lib/types/database';
+import { PermissionService } from './PermissionService';
 
-const supabase = createClient();
+export class LeadService {
+  /**
+   * Récupère tous les leads avec filtres optionnels
+   */
+  async getLeads(filters?: LeadFilters): Promise<ApiResponse<Lead[]>> {
+    let query = supabase
+      .from('leads')
+      .select('*');
+
+    if (filters?.statut) {
+      query = query.eq('statut', filters.statut);
+    }
+    if (filters?.agent_id) {
+      query = query.eq('agent_id', filters.agent_id);
+    }
+    if (filters?.search) {
+      query = query.or(
+        `nom.ilike.%${filters.search}%,prenom.ilike.%${filters.search}%,telephone.ilike.%${filters.search}%,email.ilike.%${filters.search}%`
+      );
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    return { 
+      data, 
+      error: error?.message || null 
+    };
+  }
+}
 
 export type LeadStatus = 'nouveau' | 'en_cours' | 'traite' | 'abandonne';
 
@@ -39,13 +69,15 @@ interface LeadQueryOptions {
   sortBy?: { field: string; order: 'asc' | 'desc' };
 }
 
-export const leadService = {
+export const leadService = new LeadService();
+
+export const legacyLeadService = {
   /**
    * Supprime un lead par son ID
    */
   async deleteLead(leadId: string): Promise<void> {
     const { error } = await supabase
-      .from('fichier_donnees')
+      .from('fichiers_import')
       .delete()
       .eq('id', leadId);
 
@@ -68,7 +100,7 @@ export const leadService = {
     
     try {
       let query = supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('*, fichier:fichier_id(id, nom, date_import, user_id)', { count: 'exact' })
         .in('fichier_id', fileIds);
 
@@ -114,7 +146,7 @@ export const leadService = {
       if (error) throw error;
 
       return {
-        data: data?.map(lead => ({
+        data: data?.map((lead: any) => ({
           ...lead,
           fichier: lead.fichier ? {
             id: lead.fichier.id,
@@ -136,8 +168,14 @@ export const leadService = {
    */
   async updateLeadStatus(leadId: string, status: LeadData['statut']): Promise<void> {
     try {
+      // Vérifier les permissions
+      const canAccess = await PermissionService.canAccessLead(leadId);
+      if (!canAccess) {
+        throw new Error('Vous n\'avez pas les permissions pour modifier ce lead');
+      }
+
       const { error } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .update({ 
           statut: status,
           updated_at: new Date().toISOString()
@@ -156,9 +194,15 @@ export const leadService = {
    */
   async addNoteToLead(leadId: string, note: string): Promise<void> {
     try {
+      // Vérifier les permissions
+      const canAccess = await PermissionService.canAccessLead(leadId);
+      if (!canAccess) {
+        throw new Error('Vous n\'avez pas les permissions pour modifier ce lead');
+      }
+
       // Récupérer les notes existantes
       const { data: existingLead, error: fetchError } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('notes')
         .eq('id', leadId)
         .single();
@@ -171,7 +215,7 @@ export const leadService = {
         : `${new Date().toISOString()}: ${note}`;
 
       const { error } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .update({ 
           notes: updatedNotes,
           updated_at: new Date().toISOString()
@@ -210,7 +254,7 @@ export const leadService = {
 
       // Compter le nombre total de leads
       const { count: total, error: countError } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('*', { count: 'exact', head: true })
         .in('fichier_id', fileIds);
 
@@ -218,7 +262,7 @@ export const leadService = {
 
       // Compter les leads par statut
       const { data: statusData, error: statusError } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('statut')
         .in('fichier_id', fileIds);
 
@@ -226,9 +270,9 @@ export const leadService = {
 
       // Compter manuellement les leads par statut
       const statusCounts = (statusData || []).reduce<Record<LeadStatus, number>>(
-        (acc, { statut }) => {
+        (acc: Record<LeadStatus, number>, { statut }: { statut: LeadStatus }) => {
           if (statut in acc) {
-            acc[statut as LeadStatus]++;
+            acc[statut]++;
           }
           return acc;
         },
@@ -242,19 +286,22 @@ export const leadService = {
 
       // Compter les leads par fichier
       const { data: fileData, error: fileError } = await supabase
-        .from('fichier_donnees')
-        .select('fichier_id, fichiers_import!inner(nom)')
+        .from('fichiers_import')
+        .select('fichier_id, fichiers_import(nom)')
         .in('fichier_id', fileIds);
 
       if (fileError) throw fileError;
 
       // Compter manuellement les leads par fichier
-      const fileCounts = (fileData || []).reduce<Record<string, { count: number; file: string }>>(
-        (acc, { fichier_id, fichiers_import }) => {
+const fileCounts = (fileData || []).reduce<Record<string, { count: number; file: string }>>(
+        (acc, item) => {
+          const fichier_id = item.fichier_id;
+          const nomFichier = item.fichiers_import?.[0]?.nom || 'Inconnu';
+          
           if (!acc[fichier_id]) {
             acc[fichier_id] = {
               count: 0,
-              file: (fichiers_import as any)?.nom || 'Inconnu'
+              file: nomFichier
             };
           }
           acc[fichier_id].count++;
@@ -280,7 +327,7 @@ export const leadService = {
   async updateLeadData(leadId: string, updates: Partial<LeadData>): Promise<LeadData> {
     try {
       const { data, error } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -313,7 +360,7 @@ export const leadService = {
     try {
       // Récupérer les données des leads
       const { data: leads, error } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('*')
         .in('fichier_id', fileIds);
 
@@ -321,9 +368,9 @@ export const leadService = {
 
       // Préparer les données pour le CSV
       const headers = columns;
-      const rows = leads.map(lead => {
+      const rows = leads.map((lead: any) => {
         const row: Record<string, any> = {};
-        columns.forEach(col => {
+        columns.forEach((col: string) => {
           if (col in lead) {
             row[col] = lead[col];
           } else if (lead.donnees && col in lead.donnees) {
@@ -338,8 +385,8 @@ export const leadService = {
       // Convertir en CSV
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => 
-          headers.map(fieldName => 
+        ...rows.map((row: Record<string, any>) => 
+          headers.map((fieldName: string) => 
             `"${String(row[fieldName] || '').replace(/"/g, '""')}"`
           ).join(',')
         )

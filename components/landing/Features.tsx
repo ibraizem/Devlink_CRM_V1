@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { motion, AnimatePresence, Variants, Transition } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import * as Card from '@/components/ui/card'
@@ -15,6 +14,7 @@ import {
   Lock, 
   Sparkles 
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 
 function Features() {
@@ -69,10 +69,15 @@ function Features() {
     },
   ]
 
+  const [isMounted, setIsMounted] = useState(false)
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   });
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const container: Variants = {
     hidden: { opacity: 0 },
@@ -107,8 +112,8 @@ function Features() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(99,102,241,0.1),transparent_70%)]" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
         
-        {/* Particules animées */}
-        {[...Array(10)].map((_, i) => (
+        {/* Particules animées - Rendu côté client uniquement */}
+        {isMounted && [...Array(10)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full bg-blue-400/20"

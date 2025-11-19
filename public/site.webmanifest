@@ -1,0 +1,26 @@
+{
+  "name": "DevLink CRM",
+  "short_name": "DevLink CRM",
+  "description": "Solution complète de gestion de la relation client",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/faviconcrm.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/faviconcrm.ico",
+      "type": "image/x-icon",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/faviconcrm.ico",
+      "type": "image/x-icon",
+      "sizes": "512x512"
+    }
+  ]
+}

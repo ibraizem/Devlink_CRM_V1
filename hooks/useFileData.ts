@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createClient } from '../lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export type FichierDonnee = {
   id: string;
@@ -19,7 +19,7 @@ export function useFileData() {
   const [data, setData] = useState<FichierDonnee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  // Utilisation de l'instance supabase importée
 
   const fetchFileData = async () => {
     try {
@@ -32,9 +32,9 @@ export function useFileData() {
       console.log('Utilisateur authentifié:', userData?.user?.email || 'Non connecté', authError);
       
       // Récupérer les données
-      console.log('Récupération des données de la table fichier_donnees...');
+      console.log('Récupération des données de la table fichiers_import...');
       const { data: fileData, error: fetchError, status, count } = await supabase
-        .from('fichier_donnees')
+        .from('fichiers_import')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
@@ -61,7 +61,7 @@ export function useFileData() {
           fichier_id: fileData[0].fichier_id
         });
       } else {
-        console.log('Aucune donnée trouvée dans la table fichier_donnees');
+        console.log('Aucune donnée trouvée dans la table fichiers_import');
       }
       
       setData(fileData || []);

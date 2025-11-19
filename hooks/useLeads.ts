@@ -1,21 +1,21 @@
-import { useState, useCallback } from 'react';
-import { Lead } from '@/lib/types/leads';
-import { getLeads } from '@/lib/types/leads';
+import { useState, useCallback, useEffect } from 'react';
+import { Lead, LeadFilters } from '@/lib/types/leads';
+import { leadService } from '@/lib/services/leadService';
 import { toast } from './use-toast';
-
-export interface LeadFilters {
-  statut?: string;
-  search?: string;
-}
 
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);;
+  const [loading, setLoading] = useState(true);
+  
+  // Charger les leads au montage
+  useEffect(() => {
+    loadLeads();
+  }, []);
   
   const loadLeads = useCallback(async (filters: LeadFilters = {}) => {
     setLoading(true);
     try {
-      const { data, error } = await getLeads({
+      const { data, error } = await leadService.getLeads({
         statut: filters.statut === 'all' ? undefined : filters.statut,
         search: filters.search || undefined,
       });
@@ -35,6 +35,11 @@ export const useLeads = () => {
       setLoading(false);
     }
   }, []);
+
+  // Alias pour compatibilité avec le realtime sync
+  const refreshLeads = useCallback(async () => {
+    return loadLeads();
+  }, [loadLeads]);
   
-  return { leads, loading, loadLeads };
+  return { leads, loading, loadLeads, refreshLeads };
 };

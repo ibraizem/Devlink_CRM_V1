@@ -4,13 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { fileService } from '@/lib/services/fileService';
+import { campaignService } from '@/lib/services/campaignService';
+import { ImportService } from '@/lib/services/ImportService';
 import { Progress } from '@/components/ui/progress';
 import { FileMapping } from '@/components/fichiers/FileMapping';
-import { Check, FileText, Loader2, UploadCloud } from 'lucide-react';
+import { Check, FileText, Loader2, UploadCloud, Target, Users } from 'lucide-react';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useUser } from '@/hooks/useUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 type ImportStep = 'upload' | 'select-sheet' | 'mapping' | 'preview' | 'complete';
 
@@ -21,6 +26,7 @@ interface FileUploaderProps {
   className?: string;
   acceptedFileTypes?: Record<string, string[]>;
   maxSizeMB?: number;
+  enableMultiChannel?: boolean; // Nouvelle prop pour activer l'import multicanal
 }
 
 const DEFAULT_FILE_TYPES = {
@@ -249,16 +255,40 @@ export function FileUploader({
   onUploadComplete,
   className = '',
   acceptedFileTypes = DEFAULT_FILE_TYPES,
-  maxSizeMB = MAX_FILE_SIZE_MB
+  maxSizeMB = MAX_FILE_SIZE_MB,
+  enableMultiChannel = false // Nouvelle prop avec valeur par défaut
 }: FileUploaderProps) {
-  const { user } = useUser();
+  const { user } = useCurrentUser();
   const [file, setFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rawData, setRawData] = useState<any[]>([]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [availableCampaigns, setAvailableCampaigns] = useState<any[]>([]);
   const uploadAbortRef = useRef<AbortController | null>(null);
   const userId = user?.id || '';
+  
+  // États pour l'import multicanal
+  const [detectedChannels, setDetectedChannels] = useState<string[]>([]);
+  const [categorizedLeads, setCategorizedLeads] = useState<any[]>([]);
+  const [qualityScore, setQualityScore] = useState<number>(0);
+  const [importSummary, setImportSummary] = useState<any>(null);
+  const [isMultiChannelProcessing, setIsMultiChannelProcessing] = useState(false);
+  
+  // Charger les campagnes disponibles
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        // Remplacer avec l'appel API réel pour charger les campagnes
+        const campaigns = await campaignService.getCampaigns();
+        setAvailableCampaigns(campaigns.data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des campagnes:', error);
+      }
+    };
+    loadCampaigns();
+  }, []);
   
   const {
     isUploading,
@@ -293,6 +323,15 @@ export function FileUploader({
     resetFileUpload();
     setIsLoading(false);
   }, [resetFileUpload]);
+
+  // Gérer la sélection des campagnes
+  const handleCampaignToggle = useCallback((campaignId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCampaigns(prev => [...prev, campaignId]);
+    } else {
+      setSelectedCampaigns(prev => prev.filter(id => id !== campaignId));
+    }
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -373,6 +412,12 @@ export function FileUploader({
   const handleImport = useCallback(async () => {
     if (!file) return;
 
+    // Si l'import multicanal est activé, utiliser la fonction spécialisée
+    if (enableMultiChannel) {
+      await handleMultiChannelImport();
+      return;
+    }
+
     uploadAbortRef.current = new AbortController();
     setIsLoading(true);
 
@@ -399,7 +444,56 @@ export function FileUploader({
       setIsLoading(false);
       uploadAbortRef.current = null;
     }
-  }, [file, selectedSheetIndex, userId, onUploadComplete, uploadFileToServer]);
+  }, [file, selectedSheetIndex, userId, onUploadComplete, uploadFileToServer, enableMultiChannel]);
+
+  // Gestionnaire pour l'import multicanal
+  const handleMultiChannelImport = useCallback(async () => {
+    if (!file || !userId) return;
+
+    setIsMultiChannelProcessing(true);
+    setIsLoading(true);
+
+    try {
+      console.log('🚀 Démarrage de l\'import multicanal...');
+      
+      const result = await ImportService.importMultiChannel(file, {
+        detectChannel: true,
+        autoCategorize: true,
+        enrichFromExternal: false, // Désactivé pour le moment
+        userId,
+        onProgress: (progress: number) => {
+          console.log(`Progression: ${progress}%`);
+        }
+      });
+
+      console.log('✅ Import multicanal terminé:', result);
+
+      // Mettre à jour les états avec les résultats
+      setDetectedChannels(result.channels);
+      setCategorizedLeads(result.categorizedLeads);
+      setQualityScore(result.qualityScore);
+      setImportSummary(result.importSummary);
+
+      // Afficher un message de succès détaillé
+      toast.success(`Import multicanal réussi ! ${result.importSummary.totalLeads} leads traités avec un score de qualité de ${result.qualityScore}%`);
+
+      // Notifier le parent
+      onUploadComplete?.({ 
+        success: true, 
+        fileId: 'multichannel-' + Date.now(), // ID temporaire pour le suivi
+        error: undefined 
+      });
+
+      setCurrentStep('complete');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'import multicanal:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'import multicanal');
+      setCurrentStep('upload');
+    } finally {
+      setIsMultiChannelProcessing(false);
+      setIsLoading(false);
+    }
+  }, [file, userId, onUploadComplete]);
 
   // Fonction pour revenir à l'étape précédente
   const goToPreviousStep = () => {
@@ -603,6 +697,47 @@ export function FileUploader({
         </p>
       </div>
 
+      {/* Sélection des campagnes */}
+      {availableCampaigns.length > 0 && (
+        <Card className="border border-gray-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#2563EB]" />
+              Associer aux campagnes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {availableCampaigns.map((campaign) => (
+              <div key={campaign.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`campaign-${campaign.id}`}
+                  checked={selectedCampaigns.includes(campaign.id)}
+                  onCheckedChange={(checked) => 
+                    handleCampaignToggle(campaign.id, checked as boolean)
+                  }
+                />
+                <Label 
+                  htmlFor={`campaign-${campaign.id}`}
+                  className="text-sm font-medium cursor-pointer flex-1"
+                >
+                  {campaign.name}
+                </Label>
+                {campaign.description && (
+                  <span className="text-xs text-gray-500">{campaign.description}</span>
+                )}
+              </div>
+            ))}
+            {selectedCampaigns.length > 0 && (
+              <div className="pt-2 border-t">
+                <Badge variant="secondary" className="text-xs">
+                  {selectedCampaigns.length} campagne{selectedCampaigns.length > 1 ? 's' : ''} sélectionnée{selectedCampaigns.length > 1 ? 's' : ''}
+                </Badge>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <FileMapping
         userId={userId}
         headers={headers}
@@ -634,7 +769,7 @@ export function FileUploader({
     const fetchRawData = async () => {
       if (currentStep === 'preview' && file) {
         try {
-          const data = await fileService.readFileAsJson(file, selectedSheetIndex);
+          const data = await ImportService.readFileAsJson(file, selectedSheetIndex);
           setRawData(Array.isArray(data) ? data : []);
         } catch (error) {
           console.error('Erreur lors de la récupération des données brutes:', error);
@@ -732,23 +867,127 @@ export function FileUploader({
     );
   };
 
-  // Rendu de l'étape de confirmation
-  const renderCompleteStep = () => (
-    <div className="text-center space-y-4 py-12">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-        <Check className="h-8 w-8 text-green-600" />
+  // Rendu de l'étape complète
+  const renderCompleteStep = () => {
+    // Si c'est un import multicanal, afficher les résultats détaillés
+    if (enableMultiChannel && importSummary) {
+      return (
+        <div className="space-y-6">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <Check className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Import multicanal terminé avec succès !</h3>
+            <p className="text-gray-600">Vos leads ont été traités et catégorisés automatiquement</p>
+          </div>
+
+          {/* Statistiques de l'import */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Total leads</p>
+                    <p className="text-2xl font-bold">{importSummary.totalLeads}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Target className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Score de qualité</p>
+                    <p className="text-2xl font-bold">{qualityScore}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Leads valides</p>
+                    <p className="text-2xl font-bold">{importSummary.validLeads}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Canaux détectés */}
+          {detectedChannels.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Canaux détectés</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {detectedChannels.map((channel, index) => (
+                    <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                      {channel}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Catégories de leads */}
+          {importSummary.categories && Object.keys(importSummary.categories).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Répartition des catégories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(importSummary.categories).map(([category, count]) => (
+                    <div key={category} className="flex justify-between items-center">
+                      <span className="text-sm font-medium capitalize">{category}</span>
+                      <Badge variant="outline">{count as number}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => {
+                setCurrentStep('upload');
+                setFile(null);
+                setDetectedChannels([]);
+                setCategorizedLeads([]);
+                setQualityScore(0);
+                setImportSummary(null);
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Importer un autre fichier
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Affichage standard pour l'import normal
+    return (
+      <div className="text-center">
+        <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+          <Check className="w-8 h-8 text-green-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Import terminé avec succès !</h3>
+        <p className="text-gray-600">Votre fichier a été importé et les leads ont été ajoutés à votre CRM.</p>
       </div>
-      <h3 className="text-xl font-medium">Importation réussie !</h3>
-      <p className="text-muted-foreground">
-        Votre fichier a été importé avec succès.
-      </p>
-      <div className="pt-4">
-        <Button onClick={() => setCurrentStep('upload')}>
-          Importer un autre fichier
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={`space-y-6 ${className}`}>

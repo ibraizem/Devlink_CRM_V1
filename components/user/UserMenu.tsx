@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { User, Settings, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { avatarService } from '@/lib/services/avatarService';
 import { signOut } from '@/lib/types/auth';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/types/utils';
@@ -19,31 +21,78 @@ type MenuItem = {
 
 export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const isOpenRef = useRef(isOpen);
+  
+  // Synchroniser la référence avec l'état
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
-  const menuItems: MenuItem[] = [
+  // Charger les données utilisateur au montage du composant
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Récupérer les données utilisateur depuis la base de données
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          setUserData(profile || user);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données utilisateur:', error);
+      }
+    };
+
+    loadUserData();
+  }, []);
+
+  // Version simplifiée pour tester le clic
+  const handleClick = useCallback(() => {
+    const newState = !isOpenRef.current;
+    setIsOpen(newState);
+  }, []);
+
+  const menuItems = useMemo(() => [
     {
       label: 'Mon compte',
       icon: User,
       shortcut: '⌘K',
-      onClick: () => router.push('/compte'),
+      onClick: () => {
+        window.location.href = '/user';
+      },
     },
     {
       label: 'Paramètres',
       icon: Settings,
       shortcut: '⌘,',
-      onClick: () => router.push('/settings'),
+      onClick: () => {
+        window.location.href = '/user?tab=settings';
+      },
     },
     {
       label: 'Déconnexion',
       icon: LogOut,
       onClick: async () => {
-        await signOut();
-        router.push('/auth/login');
+        try {
+          const { supabase } = await import('@/lib/supabase/client');
+          await supabase.auth.signOut();
+          window.location.href = '/auth/login';
+        } catch (error) {
+          console.error('Erreur lors de la déconnexion:', error);
+        }
       },
     },
-  ];
+  ], []);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -62,7 +111,8 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={handleClick}
         className={cn(
           'flex items-center w-full p-2 rounded-lg transition-colors',
           isOpen ? 'bg-blue-100' : 'hover:bg-blue-50',
@@ -70,15 +120,35 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
         )}
       >
         <div className="flex items-center">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
-            <User className="w-4 h-4" />
-          </div>
+          <Avatar className="w-9 h-9">
+            <AvatarImage 
+              src={(() => {
+                let avatarUrl = userData?.avatar_url || '';
+                // Si avatar_url est une URL complète, extraire le chemin relatif
+                if (avatarUrl.includes('storage/v1/object/public/user_avatars/')) {
+                  avatarUrl = avatarUrl.replace('https://nzlwbtslfljjkozzyaej.supabase.co/storage/v1/object/public/user_avatars/', '');
+                }
+                return avatarService.getAvatarUrl(avatarUrl) || '';
+              })()}
+              alt={`${userData?.prenom || 'Utilisateur'} ${userData?.nom || ''}`}
+            />
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              {userData?.prenom?.[0]?.toUpperCase() || userData?.email?.[0]?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
         </div>
         {!isCollapsed && (
           <div className="flex items-center flex-1 ml-3">
             <div className="text-left flex-1">
-              <div className="text-sm font-medium text-gray-800">Utilisateur</div>
-              <div className="text-xs text-gray-500">Administrateur</div>
+              <div className="text-sm font-medium text-gray-800">
+                {userData?.prenom && userData?.nom 
+                  ? `${userData.prenom} ${userData.nom}` 
+                  : userData?.email || 'Utilisateur'
+                }
+              </div>
+              <div className="text-xs text-gray-500 capitalize">
+                {userData?.role || 'Administrateur'}
+              </div>
             </div>
             {isOpen ? (
               <ChevronUp className="w-4 h-4 text-gray-500 ml-2" />
@@ -90,10 +160,18 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
       </button>
 
       {isOpen && (
-        <div className={cn(
-          'absolute bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-100',
-          isCollapsed ? 'bottom-0 left-14 w-56' : 'bottom-full mb-2 left-0 w-full'
-        )}>
+        <div 
+          className={cn(
+            'fixed bg-white rounded-lg shadow-lg py-1 border border-gray-100',
+            'z-[9999]', // z-index très élevé pour être au-dessus de tout
+            'w-48'
+          )}
+          style={{
+            // Positionnement par rapport au bouton
+            bottom: isCollapsed ? '80px' : '100px',
+            left: isCollapsed ? '20px' : '20px'
+          }}
+        >
           {menuItems.map((item, index) => (
             <button
               key={index}

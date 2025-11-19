@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/utils/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { FichierImport } from '@/lib/types/fichier';
+import { FileFilters } from '@/lib/types/database';
 import { fileService } from '@/lib/services/fileService';
 
 type FileData = FichierImport & {
   type: string;
   file_path?: string;
+  // Alias pour la compatibilité avec CampaignForm
+  name: string; // Map vers nom
+  path: string; // Map vers chemin
+  size: number; // Map vers taille
 };
 
 type ActionHistory = {
@@ -20,7 +25,7 @@ type ActionHistory = {
 };
 
 export function useFileManager() {
-  const supabase = createClient();
+  // Utilisation de l'instance supabase importée
   const [files, setFiles] = useState<FileData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,7 +43,7 @@ export function useFileManager() {
   const fetchFiles = useCallback(async () => {
     try {
       setIsLoading(true);
-      const supabase = createClient();
+      // Utilisation de l'instance supabase importée
       const { data, error } = await supabase
         .from('fichiers_import')
         .select('*')
@@ -77,7 +82,7 @@ export function useFileManager() {
     if (!lastAction) return;
     
     try {
-      const supabase = createClient();
+      // Utilisation de l'instance supabase importée
       
       switch (lastAction.type) {
         case 'delete':
@@ -220,7 +225,7 @@ export function useFileManager() {
   const handleFileUpload = useCallback(async (file: File, options: { mapping?: Record<string, string> } = {}) => {
     const mapping = options.mapping || {};
     let fichierData: any = null;
-    const supabase = createClient();
+    // Utilisation de l'instance supabase importée
     
     try {
       setIsUploading(true);
@@ -343,13 +348,13 @@ export function useFileManager() {
   // Charger les fichiers au montage du composant
   useEffect(() => {
     fetchFiles();
-  }, [fetchFiles]);
+  }, []);
 
   // Réinitialiser la sélection quand la liste des fichiers change
   useEffect(() => {
     setSelectedFiles(new Set());
     setIsAllSelected(false);
-  }, [files]);
+  }, []);
   
   // Les fonctions cleanColumnName et mapToDatabaseColumn ont été déplacées plus haut dans le fichier
   // pour être définies une seule fois et utilisées dans toute l'application
@@ -364,7 +369,11 @@ export function useFileManager() {
       const fileData = data.map(file => ({
         ...file,
         type: file.nom?.split('.').pop()?.toLowerCase() || 'file',
-        file_path: file.chemin_fichier
+        file_path: file.chemin_fichier,
+        // Alias pour la compatibilité avec CampaignForm
+        name: file.nom,
+        path: file.chemin,
+        size: file.taille
       }));
       setFiles(fileData);
     } catch (error) {
