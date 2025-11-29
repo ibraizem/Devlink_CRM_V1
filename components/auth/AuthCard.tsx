@@ -9,6 +9,8 @@ type AuthCardProps = {
   children: ReactNode;
   footer: ReactNode;
   highlightText?: string;
+  rightPanel?: ReactNode;
+  showFeatureCards?: boolean;
 };
 
 // Composant pour l'état de chargement
@@ -30,7 +32,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function AuthCard({ title, subtitle, children, footer, highlightText }: AuthCardProps) {
+export function AuthCard({ title, subtitle, children, footer, highlightText, rightPanel }: AuthCardProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -75,31 +77,43 @@ export function AuthCard({ title, subtitle, children, footer, highlightText }: A
               </div>
             </motion.div>
 
-            {/* Partie droite - Illustration */}
-            <motion.div 
-              className="hidden lg:block bg-gradient-to-br from-blue-600 to-blue-800 p-8 sm:p-12 text-white relative overflow-hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <div className="h-full flex flex-col justify-center items-center text-center relative z-10">
-                <div className="max-w-md mx-auto">
-                  <h2 className="text-2xl font-bold mb-4">
-                    {highlightText || 'Gérez vos leads efficacement'}
-                  </h2>
-                  <p className="text-blue-100">
-                    Une solution complète pour suivre, gérer et convertir vos prospects en clients fidèles.
-                  </p>
+            {/* Partie droite - Custom Panel ou Illustration */}
+            {rightPanel ? (
+              <motion.div 
+                className="hidden lg:block bg-gradient-to-br from-blue-600 to-blue-800 p-6 relative overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                {rightPanel}
+              </motion.div>
+            ) : (
+              <motion.div 
+                className="hidden lg:block bg-gradient-to-br from-blue-600 to-blue-800 p-8 sm:p-12 text-white relative overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <div className="h-full flex flex-col justify-center items-center text-center relative z-10">
+                  <div className="max-w-md mx-auto">
+                    <h2 className="text-2xl font-bold mb-4">
+                      {highlightText || 'Gérez vos leads efficacement'}
+                    </h2>
+                    <p className="text-blue-100">
+                      Une solution complète pour suivre, gérer et convertir vos prospects en clients fidèles.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              
-              {/* Éléments décoratifs */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute w-64 h-64 bg-white rounded-full -top-32 -right-32"></div>
-                <div className="absolute w-96 h-96 bg-blue-400 rounded-full -bottom-48 -left-48"></div>
-              </div>
-            </motion.div>
+                
+                {/* Éléments décoratifs */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute w-64 h-64 bg-white rounded-full -top-32 -right-32"></div>
+                  <div className="absolute w-96 h-96 bg-blue-400 rounded-full -bottom-48 -left-48"></div>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       </div>

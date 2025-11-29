@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { CheckCircle2, User, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { motion } from 'framer-motion';
+import { OnboardingFeaturePanel } from '@/components/auth/onboarding';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -114,6 +115,7 @@ export default function RegisterPage() {
           </Link>
         </div>
       }
+      rightPanel={<OnboardingFeaturePanel />}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
