@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/types/utils';
-import { Home, Users, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp, Zap } from 'lucide-react';
+import { Home, Users, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp, Zap, Webhook } from 'lucide-react';
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -217,6 +217,12 @@ const menuItems = [
     label: 'Workflows', 
     href: '/workflows',
     gradient: 'from-violet-500 to-purple-600'
+  },
+  { 
+    icon: Webhook, 
+    label: 'Webhooks', 
+    href: '/webhooks',
+    gradient: 'from-cyan-500 to-blue-600'
   },
 ];
 
