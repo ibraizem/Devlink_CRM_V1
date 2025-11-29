@@ -206,6 +206,12 @@ const menuItems = [
     href: '/rapports',
     gradient: 'from-amber-500 to-orange-600'
   },
+  { 
+    icon: CheckSquare, 
+    label: 'Analytics', 
+    href: '/analytics',
+    gradient: 'from-pink-500 to-rose-600'
+  },
 ];
 
 // Vérifie si on est sur un appareil mobile (SSR-safe)
