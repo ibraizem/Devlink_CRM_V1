@@ -3,12 +3,13 @@ export type SortDirection = 'asc' | 'desc';
 export interface ColumnDefinition<T> {
   key: keyof T;
   label: string;
-  // Add any other column-specific properties here
 }
 
 export interface Lead {
   id: string;
-  [key: string]: any; // This allows for dynamic properties
+  score?: number;
+  campaign_id?: string;
+  [key: string]: any;
 }
 
 export interface LeadsTableProps<T> {

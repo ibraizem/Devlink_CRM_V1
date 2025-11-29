@@ -3,31 +3,29 @@
 ## Commands
 
 **Setup:** `yarn install`  
+**Dev Server:** `yarn dev`  
 **Build:** `yarn build`  
 **Lint:** `yarn lint`  
-**Test:** `yarn typecheck` (no test framework configured)  
-**Dev Server:** `yarn dev`
+**Tests:** N/A (no test framework configured)  
+**Type Check:** `yarn typecheck`
 
 ## Tech Stack
 
-- **Framework:** Next.js 14 (App Router) with TypeScript
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript (strict mode)
 - **Styling:** Tailwind CSS with shadcn/ui components
-- **State:** Zustand + React Query (TanStack)
+- **State:** Zustand, React Query (@tanstack/react-query)
 - **Backend:** Supabase (auth & database)
+- **Forms:** react-hook-form with Zod validation
 - **UI:** Radix UI primitives, Framer Motion, Lucide icons
 
 ## Architecture
 
-- `app/` - Next.js routes (auth, dashboard, leads, rapports, settings, etc.)
-- `components/` - Reusable components (ui/, common/, feature-specific)
-- `lib/` - Utilities and shared logic
-- `types/` - TypeScript type definitions
-- `contexts/` & `hooks/` - React context and custom hooks
+App Router structure with feature-based organization: `/app` for routes, `/components` for UI (organized by feature), `/lib` for utilities, `/hooks` for custom hooks, `/contexts` for React context, `/types` for TypeScript definitions. Uses `@/` path alias for imports.
 
-## Code Style
+## Code Conventions
 
-- Path alias: `@/` for root imports
-- CSS utility: `cn()` from `lib/utils.ts` for class merging
-- Component pattern: shadcn/ui style with `forwardRef`, CVA variants
-- Naming: camelCase for functions/variables, PascalCase for components
-- French UI text (locale: `fr-FR`)
+- Use `cn()` utility from `lib/utils.ts` for conditional classes
+- Functional components with TypeScript interfaces
+- French locale for dates/times (`fr-FR`)
+- shadcn/ui component patterns with Radix UI primitives
