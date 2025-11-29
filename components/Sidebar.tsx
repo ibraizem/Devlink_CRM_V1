@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/types/utils';
-import { Home, Users, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp } from 'lucide-react';
+import { Home, Users, FileText, Calendar, ChevronLeft, Menu, X, LucideProps, Phone, CheckSquare, FileUp, Zap } from 'lucide-react';
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -211,6 +211,12 @@ const menuItems = [
     label: 'Analytics', 
     href: '/analytics',
     gradient: 'from-pink-500 to-rose-600'
+  },
+  { 
+    icon: Zap, 
+    label: 'Workflows', 
+    href: '/workflows',
+    gradient: 'from-violet-500 to-purple-600'
   },
 ];
 
