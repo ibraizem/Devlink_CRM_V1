@@ -1,23 +1,21 @@
-'use client';
+'use client'
 
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import { DataTableProps } from '@/components/leads/DataTable';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react'
 
-// Base type for our column definition that matches DataTable's requirements
 type BaseColumnDefinition = {
-  key: string;
-  label: string;
-  isVisible?: boolean;
-  isCustom?: boolean;
-  accessorKey?: string;
-  header?: string | ((props: any) => React.ReactNode);
-  cell?: (props: any) => React.ReactNode;
-};
+  key: string
+  label: string
+  isVisible?: boolean
+  isCustom?: boolean
+  accessorKey?: string
+  header?: string | ((props: any) => React.ReactNode)
+  cell?: (props: any) => React.ReactNode
+}
 
 type ColumnDefinition = BaseColumnDefinition & {
-  isVisible?: boolean;
-  isCustom?: boolean;
-};
+  isVisible?: boolean
+  isCustom?: boolean
+}
 import { userColumnsService, UserColumn } from '@/lib/api/leads/userColumns';
 import { createClient } from '@/lib/utils/supabase/client';
 

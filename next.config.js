@@ -1,22 +1,31 @@
 /** @type {import('next').NextConfig} */
-const path = require('path');
+const path = require('path')
 
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
+  images: { 
+    unoptimized: true 
   },
-  images: { unoptimized: true },
+  reactCompiler: true,
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        '@': path.resolve(__dirname, '.'),
+        '@/lib': path.resolve(__dirname, 'lib'),
+        '@/components': path.resolve(__dirname, 'components'),
+        '@/types': path.resolve(__dirname, 'types'),
+      },
+    },
+  },
   webpack: (config) => {
-    // Configuration pour les alias de chemins
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, '.'),
       '@/lib': path.resolve(__dirname, 'lib'),
       '@/components': path.resolve(__dirname, 'components'),
       '@/types': path.resolve(__dirname, 'types'),
-    };
-    return config;
+    }
+    return config
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

@@ -106,20 +106,20 @@ export class JWTAdapter {
   }
 
   private base64UrlEncode(data: string | Uint8Array | Buffer): string {
-    let base64: string;
+    let base64: string
     
     if (typeof data === 'string') {
-      base64 = Buffer.from(data).toString('base64');
-    } else if (data instanceof Uint8Array) {
-      base64 = Buffer.from(data).toString('base64');
+      base64 = Buffer.from(data).toString('base64')
+    } else if (Buffer.isBuffer(data)) {
+      base64 = data.toString('base64')
     } else {
-      base64 = data.toString('base64');
+      base64 = Buffer.from(data).toString('base64')
     }
 
     return base64
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
-      .replace(/=/g, '');
+      .replace(/=/g, '')
   }
 
   private base64UrlDecode(str: string): string {

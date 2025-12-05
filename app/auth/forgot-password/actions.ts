@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 
 export async function resetPassword(formData: FormData) {
   const email = formData.get('email') as string 
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

@@ -1,7 +1,7 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { Webhook, WebhookEventType } from '@/types/webhooks';
+import { useEffect, useState } from 'react'
+import { Webhook, WebhookEventType, WebhookStatus } from '@/types/webhooks'
 import {
   Dialog,
   DialogContent,
@@ -41,12 +41,25 @@ const EVENT_TYPES: { value: WebhookEventType; label: string; description: string
 ];
 
 export function WebhookDialog({ open, webhook, onClose, onSave }: WebhookDialogProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string
+    url: string
+    description: string
+    status: WebhookStatus
+    events: WebhookEventType[]
+    headers: string
+    transform_enabled: boolean
+    transform_script: string
+    retry_enabled: boolean
+    max_retries: number
+    retry_delay: number
+    timeout: number
+  }>({
     name: '',
     url: '',
     description: '',
-    status: 'active' as const,
-    events: [] as WebhookEventType[],
+    status: 'active',
+    events: [],
     headers: '{}',
     transform_enabled: false,
     transform_script: '',

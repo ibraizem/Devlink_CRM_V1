@@ -1,45 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/utils/supabase/server';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/utils/supabase/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabase = createClient(await cookies())
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data, error } = await supabase
       .from('webhooks')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
 
-    if (error) throw error;
+    if (error) throw error
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data })
   } catch (error) {
-    console.error('Error fetching webhooks:', error);
+    console.error('Error fetching webhooks:', error)
     return NextResponse.json(
       { error: 'Failed to fetch webhooks' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabase = createClient(await cookies())
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json();
+    const body = await request.json()
 
-    const secretKey = generateSecretKey();
+    const secretKey = generateSecretKey()
 
     const { data, error } = await supabase
       .from('webhooks')
@@ -49,22 +49,22 @@ export async function POST(request: NextRequest) {
         created_by: user.id,
       })
       .select()
-      .single();
+      .single()
 
-    if (error) throw error;
+    if (error) throw error
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data })
   } catch (error) {
-    console.error('Error creating webhook:', error);
+    console.error('Error creating webhook:', error)
     return NextResponse.json(
       { error: 'Failed to create webhook' },
       { status: 500 }
-    );
+    )
   }
 }
 
 function generateSecretKey(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }

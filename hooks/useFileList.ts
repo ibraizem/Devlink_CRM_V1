@@ -18,9 +18,9 @@ export const useFileList = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [actionHistory, setActionHistory] = useState<FileAction[]>([]);
-  const [isUndoAvailable, setIsUndoAvailable] = useState(false);
-  const lastActionRef = useRef<FileAction | null>(null);
-  const undoTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isUndoAvailable, setIsUndoAvailable] = useState(false)
+  const lastActionRef = useRef<FileAction | null>(null)
+  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Charger la liste des fichiers avec pagination
   const loadFiles = useCallback(async (page = 1, pageSize = 20, filters = {}) => {

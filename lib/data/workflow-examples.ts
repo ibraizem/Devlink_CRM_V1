@@ -177,6 +177,7 @@ export const exampleWorkflows: Omit<Workflow, 'id' | 'created_at' | 'updated_at'
               email: {
                 to: '{{lead.email}}',
                 subject: 'Welcome to DevLink CRM',
+                body: '',
                 template: 'welcome_qualified_lead',
               },
             },

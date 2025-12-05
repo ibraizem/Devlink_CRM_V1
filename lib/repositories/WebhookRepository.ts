@@ -16,7 +16,7 @@ export class WebhookRepository extends BaseRepository<Webhook> {
   }
 
   async createWebhook(data: Omit<Webhook, 'id' | 'created_at' | 'updated_at'>): Promise<Webhook> {
-    return this.create(data);
+    return this.create(data as Omit<Webhook, 'id' | 'created_at'>)
   }
 
   async updateWebhook(id: string, data: Partial<Webhook>): Promise<Webhook> {
