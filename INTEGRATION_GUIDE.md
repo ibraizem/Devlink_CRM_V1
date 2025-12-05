@@ -1,376 +1,445 @@
-# Lead Detail View Integration Guide
+# Guide d'Intégration - Fonctionnalités Avancées du Tableau de Leads
 
-This guide shows how to integrate the lead detail view with existing components.
+Ce guide explique comment intégrer les nouvelles fonctionnalités avancées dans votre application DevLink CRM.
 
-## Navigation to Lead Detail
+## 📦 Fichiers Créés
 
-### From Lead Table Row
+### Composants Principaux
 
-To make table rows clickable and navigate to detail view:
+```
+components/leads/
+├── CellContextMenu.tsx          # Menu contextuel (clic droit)
+├── ColumnFilters.tsx            # Filtres par colonne avec autocomplete
+├── EnhancedLeadsTable.tsx       # Tableau intégré avec toutes les fonctionnalités
+├── ExportDialog.tsx             # Dialog d'export multi-format
+├── FullscreenTable.tsx          # Mode plein écran avec raccourcis
+├── GlobalSearch.tsx             # Recherche globale avec highlighting
+└── LeadsTableDemo.tsx           # Composant de démonstration
+```
+
+### Documentation
+
+```
+components/leads/
+├── ADVANCED_FEATURES.md         # Documentation détaillée des fonctionnalités
+├── CHANGELOG.md                 # Historique des versions
+└── README.md                    # Guide d'utilisation
+```
+
+### Exemples
+
+```
+components/leads/examples/
+├── BasicExample.tsx             # Exemple basique
+├── ContextMenuExample.tsx       # Exemple menu contextuel
+├── ExportExample.tsx            # Exemple export
+└── index.ts                     # Export centralisé
+```
+
+### Utilitaires
+
+```
+hooks/
+└── useAdvancedTableInteractions.ts  # Hook de gestion d'état
+
+types/
+└── advanced-table.ts                # Types TypeScript
+
+components/leads/advanced/
+└── index.ts                         # Export centralisé des composants
+
+components/leads/__tests__/
+└── advanced-features.test.ts        # Spécifications de tests
+```
+
+## 🚀 Intégration Rapide
+
+### Option 1 : Utilisation du Composant Intégré (Recommandé)
+
+Le moyen le plus simple d'utiliser toutes les fonctionnalités :
 
 ```tsx
-import { useRouter } from 'next/navigation';
+// Dans votre page de leads (app/leads/page.tsx)
+import { EnhancedLeadsTable } from '@/components/leads/EnhancedLeadsTable'
+import { useCrmData2 } from '@/hooks/useCrmData2'
 
-function LeadTable() {
-  const router = useRouter();
+export default function LeadsPage() {
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([])
+  const { data: leads, isLoading, refresh } = useCrmData2(selectedFileIds)
 
-  const handleRowClick = (leadId: string) => {
-    router.push(`/dashboard/leads/${leadId}`);
-  };
+  const columns = [
+    { key: 'nom', label: 'Nom' },
+    { key: 'prenom', label: 'Prénom' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Téléphone' },
+    { key: 'company', label: 'Entreprise' },
+  ]
 
   return (
-    <TableRow onClick={() => handleRowClick(lead.id)}>
-      {/* row content */}
-    </TableRow>
-  );
+    <EnhancedLeadsTable
+      data={leads}
+      columns={columns}
+      onRefresh={refresh}
+    />
+  )
 }
 ```
 
-### From Lead Cards
+### Option 2 : Composants Individuels
+
+Pour plus de contrôle, utilisez les composants séparément :
 
 ```tsx
-import Link from 'next/link';
+import {
+  GlobalSearch,
+  ColumnFilters,
+  ExportDialog,
+  FullscreenTable
+} from '@/components/leads/advanced'
 
-function LeadCard({ lead }) {
-  return (
-    <Link href={`/dashboard/leads/${lead.id}`}>
-      <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-        {/* card content */}
-      </Card>
-    </Link>
-  );
-}
-```
+export default function CustomLeadsPage() {
+  const [filters, setFilters] = useState({})
+  const [selected, setSelected] = useState([])
 
-### From Actions Menu
-
-Update `LeadsTableActionsMenu.tsx`:
-
-```tsx
-import { useRouter } from 'next/navigation';
-import { Eye } from 'lucide-react';
-
-export function LeadsTableActionsMenu({ leadId, ...props }) {
-  const router = useRouter();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuContent>
-        <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${leadId}`)}>
-          <Eye className="mr-2 h-4 w-4" />
-          Voir détails
-        </DropdownMenuItem>
-        {/* other actions */}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-```
-
-## Programmatic Navigation
-
-### After Creating a Lead
-
-```tsx
-import { createLead } from '@/lib/types/leads';
-import { useRouter } from 'next/navigation';
-
-async function handleCreateLead(leadData) {
-  const { data, error } = await createLead(leadData);
-  
-  if (data && !error) {
-    toast.success('Lead créé avec succès');
-    router.push(`/dashboard/leads/${data.id}`);
-  }
-}
-```
-
-### From Search Results
-
-```tsx
-function SearchResults({ results }) {
   return (
     <div>
-      {results.map(lead => (
-        <Link 
-          key={lead.id} 
-          href={`/dashboard/leads/${lead.id}`}
-          className="block p-4 hover:bg-gray-50"
-        >
-          <h3>{lead.nom} {lead.prenom}</h3>
-          <p className="text-sm text-gray-500">{lead.email}</p>
-        </Link>
-      ))}
+      {/* Barre d'outils */}
+      <div className="flex gap-2">
+        <GlobalSearch data={leads} onSelectLead={handleSelect} />
+        <ColumnFilters 
+          data={leads}
+          columns={columns}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+        <ExportDialog
+          data={leads}
+          selectedIds={selected}
+          columns={columns}
+        />
+      </div>
+
+      {/* Tableau dans mode plein écran */}
+      <FullscreenTable>
+        {/* Votre tableau personnalisé */}
+      </FullscreenTable>
     </div>
-  );
+  )
 }
 ```
 
-## Back Navigation
+### Option 3 : Menu Contextuel Uniquement
 
-The lead detail view includes a back button that returns to `/dashboard/leads`. To customize:
+Pour ajouter juste le menu contextuel à un tableau existant :
 
 ```tsx
-// In LeadDetailView.tsx, modify the back button:
-<Button
-  variant="outline"
-  size="icon"
-  onClick={() => router.back()} // or router.push('/your-custom-route')
+import { CellContextMenu } from '@/components/leads/CellContextMenu'
+
+function MyTableCell({ lead, value }) {
+  return (
+    <CellContextMenu
+      lead={lead}
+      cellKey="email"
+      cellValue={value}
+      onCall={handleCall}
+      onEmail={handleEmail}
+      onNote={handleNote}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      onStatusChange={handleStatusChange}
+      onCopyCell={handleCopyCell}
+      onFilterByValue={handleFilterByValue}
+    >
+      <div>{value}</div>
+    </CellContextMenu>
+  )
+}
+```
+
+## 🎯 Fonctionnalités par Composant
+
+### 1. Menu Contextuel (CellContextMenu)
+
+**Activation :** Clic droit sur n'importe quelle cellule
+
+**Actions disponibles :**
+- ✅ Copier la cellule
+- ✅ Copier toute la ligne (JSON)
+- ✅ Filtrer par cette valeur
+- ✅ Appeler le contact
+- ✅ Envoyer un email
+- ✅ Envoyer un message
+- ✅ Ajouter une note
+- ✅ Modifier le lead
+- ✅ Changer le statut (Nouveau, En cours, Traité, Abandonné)
+- ✅ Supprimer le lead
+
+### 2. Recherche Globale (GlobalSearch)
+
+**Activation :** ⌘K (Mac) ou Ctrl+K (Windows/Linux)
+
+**Fonctionnalités :**
+- ✅ Recherche dans tous les champs simultanément
+- ✅ Highlighting des résultats trouvés
+- ✅ Score de pertinence
+- ✅ Navigation au clavier
+- ✅ Icônes contextuelles
+- ✅ Limite de 50 résultats
+
+### 3. Filtres par Colonne (ColumnFilters)
+
+**Activation :** Bouton "Filtres"
+
+**Fonctionnalités :**
+- ✅ Sélection de colonnes à filtrer
+- ✅ Autocomplete des valeurs existantes
+- ✅ Compteurs d'occurrences
+- ✅ Multi-sélection de valeurs
+- ✅ Recherche dans les valeurs
+- ✅ Badges pour filtres actifs
+- ✅ Effacement individuel ou global
+
+### 4. Export Multi-Format (ExportDialog)
+
+**Activation :** Bouton "Exporter"
+
+**Formats supportés :**
+- ✅ CSV (compatible Excel)
+- ✅ Excel (.xlsx) avec mise en forme
+- ✅ JSON (pour intégrations)
+
+**Options :**
+- ✅ Sélection de colonnes
+- ✅ Inclusion/exclusion des en-têtes
+- ✅ Export sélection ou tout
+- ✅ Noms de fichiers avec timestamp
+
+### 5. Mode Plein Écran (FullscreenTable)
+
+**Activation :** Ctrl+F ou bouton "Plein écran"
+
+**Raccourcis :**
+- ✅ `Ctrl+F` : Activer/désactiver
+- ✅ `Échap` : Quitter
+- ✅ `Shift+?` : Afficher les raccourcis
+
+## 🔧 Configuration
+
+### Dépendances Requises
+
+Toutes les dépendances sont déjà installées dans le projet :
+
+```json
+{
+  "@radix-ui/react-context-menu": "^2.2.16",
+  "cmdk": "^1.0.0",
+  "framer-motion": "^12.23.24",
+  "xlsx": "^0.18.5"
+}
+```
+
+### Types TypeScript
+
+Les types sont automatiquement disponibles via :
+
+```tsx
+import { Lead, ColumnDefinition } from '@/types/leads'
+import { LeadStatus } from '@/lib/services/leadService'
+import type {
+  CellContextMenuProps,
+  GlobalSearchProps,
+  ExportDialogProps
+} from '@/types/advanced-table'
+```
+
+## 📱 Responsive
+
+Tous les composants sont responsive et s'adaptent automatiquement :
+
+- **Mobile :** Boutons compacts, scroll horizontal
+- **Tablet :** Layout intermédiaire
+- **Desktop :** Interface complète
+
+## ♿ Accessibilité
+
+- Labels ARIA sur tous les contrôles
+- Navigation clavier complète
+- Support lecteurs d'écran
+- Focus management
+- Indicateurs visuels clairs
+
+## 🎨 Personnalisation
+
+### Thème
+
+Les composants utilisent les tokens Tailwind et s'adaptent au mode sombre :
+
+```tsx
+// Pas de configuration nécessaire, tout est automatique
+<EnhancedLeadsTable data={leads} columns={columns} />
+```
+
+### Classes CSS Personnalisées
+
+Vous pouvez ajouter des classes personnalisées :
+
+```tsx
+<EnhancedLeadsTable
+  data={leads}
+  columns={columns}
+  className="my-custom-table"
+/>
+```
+
+### Callbacks Personnalisés
+
+Tous les callbacks peuvent être personnalisés :
+
+```tsx
+<CellContextMenu
+  lead={lead}
+  onCall={(lead) => {
+    // Votre logique d'appel
+    console.log('Calling', lead.phone)
+    myVoipService.call(lead.phone)
+  }}
+  onEmail={(lead) => {
+    // Votre logique d'email
+    myEmailService.compose(lead.email)
+  }}
 >
-  <ArrowLeft className="h-4 w-4" />
-</Button>
+  {children}
+</CellContextMenu>
 ```
 
-## Deep Linking
+## 🧪 Tests
 
-### Link to Specific Tab
+### Exécuter les Tests (à configurer)
 
-```tsx
-// Future enhancement - add tab param
-<Link href={`/dashboard/leads/${leadId}?tab=notes`}>
-  View Notes
-</Link>
+```bash
+# Les spécifications de tests sont disponibles dans
+# components/leads/__tests__/advanced-features.test.ts
 
-// Then in page.tsx:
-import { useSearchParams } from 'next/navigation';
-
-export default function LeadDetailPage() {
-  const searchParams = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'timeline';
-  
-  return <LeadDetailView lead={lead} defaultTab={defaultTab} />;
-}
+# Pour exécuter les tests (après configuration Jest/Vitest) :
+yarn test components/leads
 ```
 
-### Link to Communication Action
+### Tests Manuels
 
-```tsx
-// Example: Direct link to log a call
-<Link href={`/dashboard/leads/${leadId}?action=call`}>
-  Log Call
-</Link>
-```
+1. **Menu Contextuel :**
+   - Clic droit sur une cellule → Menu s'affiche
+   - Sélectionner "Copier la cellule" → Valeur copiée
+   - Sélectionner "Filtrer par cette valeur" → Filtre appliqué
 
-## Embedding in Dashboard
+2. **Recherche Globale :**
+   - Appuyer sur ⌘K → Dialog s'ouvre
+   - Taper "test" → Résultats affichés avec highlighting
+   - Cliquer sur un résultat → Dialog se ferme et lead sélectionné
 
-### As a Modal/Drawer
+3. **Filtres :**
+   - Cliquer sur "Filtres" → Panel s'ouvre
+   - Sélectionner une colonne → Valeurs affichées avec compteurs
+   - Cocher des valeurs → Données filtrées
+   - Cliquer sur "Effacer tout" → Filtres supprimés
 
-Instead of a full page, you can show lead details in a drawer:
+4. **Export :**
+   - Cliquer sur "Exporter" → Dialog s'ouvre
+   - Sélectionner format CSV → Colonnes affichées
+   - Décocher certaines colonnes → Export partiel
+   - Cliquer "Exporter" → Fichier téléchargé
 
-```tsx
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { LeadDetailView } from '@/components/leads/LeadDetailView';
+5. **Plein Écran :**
+   - Appuyer sur Ctrl+F → Mode plein écran activé
+   - Appuyer sur Shift+? → Raccourcis affichés
+   - Appuyer sur Échap → Mode plein écran désactivé
 
-function DashboardWithLeadDetail() {
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  
-  return (
-    <>
-      <LeadList onSelectLead={setSelectedLeadId} />
-      
-      <Sheet open={!!selectedLeadId} onOpenChange={() => setSelectedLeadId(null)}>
-        <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
-          {selectedLeadId && (
-            <LeadDetailView 
-              lead={lead} 
-              onUpdate={() => {/* refresh */}}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-    </>
-  );
-}
-```
+## 🚨 Dépannage
 
-## Sidebar Navigation
+### Le menu contextuel ne s'affiche pas
 
-Add to dashboard sidebar:
+**Solution :** Vérifiez que `@radix-ui/react-context-menu` est installé et que le composant parent n'empêche pas le clic droit.
 
-```tsx
-// In sidebar navigation component
-import { Users, User } from 'lucide-react';
+### La recherche globale ne s'ouvre pas avec ⌘K
 
-const navigation = [
-  { name: 'Leads', href: '/dashboard/leads', icon: Users },
-  // When viewing a lead, show active state
-  { 
-    name: 'Lead Detail', 
-    href: `/dashboard/leads/${currentLeadId}`, 
-    icon: User,
-    active: pathname.includes('/dashboard/leads/')
-  },
-];
-```
+**Solution :** Assurez-vous qu'aucun autre composant n'intercepte ce raccourci. Vérifiez la console pour d'éventuelles erreurs.
 
-## Breadcrumbs
+### L'export Excel génère un fichier corrompu
 
-Show navigation breadcrumbs:
+**Solution :** Vérifiez que les données ne contiennent pas de références circulaires. Utilisez `JSON.stringify` pour tester.
 
-```tsx
-import { Breadcrumb } from '@/components/ui/breadcrumb';
+### Le mode plein écran ne se ferme pas
 
-function LeadDetailPage() {
-  return (
-    <div>
-      <Breadcrumb>
-        <BreadcrumbItem>
-          <Link href="/dashboard">Dashboard</Link>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <Link href="/dashboard/leads">Leads</Link>
-        </BreadcrumbItem>
-        <BreadcrumbItem active>
-          {lead.nom} {lead.prenom}
-        </BreadcrumbItem>
-      </Breadcrumb>
-      
-      <LeadDetailView lead={lead} onUpdate={loadLead} />
-    </div>
-  );
-}
-```
+**Solution :** Appuyez sur `Échap`. Si cela ne fonctionne pas, vérifiez la console JavaScript pour des erreurs.
 
-## Mobile Navigation
+### Les filtres ne s'appliquent pas
 
-For mobile, consider a bottom sheet:
+**Solution :** Vérifiez que vous passez bien les filtres et le callback `onFiltersChange` au composant.
 
-```tsx
-import { Drawer } from 'vaul';
+## 📊 Performance
 
-function MobileLeadDetail() {
-  return (
-    <Drawer.Root>
-      <Drawer.Trigger>View Lead</Drawer.Trigger>
-      <Drawer.Portal>
-        <Drawer.Overlay />
-        <Drawer.Content>
-          <LeadDetailView lead={lead} onUpdate={loadLead} />
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
-  );
-}
-```
+### Optimisations Intégrées
 
-## Context Menu Integration
+- **useMemo** pour calculs coûteux
+- **useCallback** pour callbacks stables
+- Limite de 50 résultats pour recherche
+- Virtualisation recommandée pour >1000 lignes
+- Pagination par défaut
 
-Add "View Details" to right-click menu:
+### Recommandations
 
-```tsx
-import { ContextMenu } from '@/components/ui/context-menu';
+Pour de grandes quantités de données (>10000 lignes) :
 
-function LeadTableRow({ lead }) {
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger>
-        <TableRow>
-          {/* row content */}
-        </TableRow>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}`)}>
-          View Details
-        </ContextMenuItem>
-        <ContextMenuItem>Edit</ContextMenuItem>
-        <ContextMenuItem>Delete</ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-```
+1. Utilisez la pagination côté serveur
+2. Implémentez un debouncing sur la recherche
+3. Limitez le nombre de colonnes visibles
+4. Utilisez React Virtual pour le rendu
 
-## Keyboard Shortcuts
+## 🔐 Sécurité
 
-Add keyboard navigation:
+- Validation des données avant export
+- Échappement correct des caractères spéciaux
+- Pas d'exposition de données sensibles dans les logs
+- Confirmation pour actions destructives
+- Sanitization des valeurs JSON
 
-```tsx
-import { useEffect } from 'react';
+## 📚 Ressources
 
-function LeadTable() {
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Press Enter to view details
-      if (e.key === 'Enter' && selectedLead) {
-        router.push(`/dashboard/leads/${selectedLead.id}`);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedLead]);
-}
-```
+- [Documentation Complète](./components/leads/ADVANCED_FEATURES.md)
+- [Guide d'Utilisation](./components/leads/README.md)
+- [Changelog](./components/leads/CHANGELOG.md)
+- [Exemples](./components/leads/examples/)
+- [Types TypeScript](./types/advanced-table.ts)
 
-## URL State Management
+## 🤝 Support
 
-Keep filters when navigating back:
+Pour toute question ou problème :
 
-```tsx
-function LeadList() {
-  const [filters, setFilters] = useState({});
-  
-  const handleViewDetails = (leadId: string) => {
-    // Save filters to session storage
-    sessionStorage.setItem('leadFilters', JSON.stringify(filters));
-    router.push(`/dashboard/leads/${leadId}`);
-  };
-  
-  useEffect(() => {
-    // Restore filters when coming back
-    const savedFilters = sessionStorage.getItem('leadFilters');
-    if (savedFilters) {
-      setFilters(JSON.parse(savedFilters));
-    }
-  }, []);
-}
-```
+1. Consultez la documentation complète
+2. Vérifiez les exemples fournis
+3. Consultez le changelog pour les notes de version
+4. Vérifiez les spécifications de tests
 
-## Complete Example
+## 📝 Checklist d'Intégration
 
-Here's a complete example integrating everything:
+- [ ] Lire la documentation complète
+- [ ] Tester le composant EnhancedLeadsTable
+- [ ] Vérifier les raccourcis clavier
+- [ ] Tester le menu contextuel
+- [ ] Tester la recherche globale
+- [ ] Tester les filtres par colonne
+- [ ] Tester l'export dans les 3 formats
+- [ ] Tester le mode plein écran
+- [ ] Vérifier la responsive mobile
+- [ ] Vérifier l'accessibilité
+- [ ] Personnaliser les callbacks si nécessaire
+- [ ] Tester avec vos données réelles
+- [ ] Former les utilisateurs aux nouveaux raccourcis
 
-```tsx
-'use client';
+## 🎉 Prochaines Étapes
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Lead } from '@/lib/types/leads';
-import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
-import Link from 'next/link';
+Une fois l'intégration terminée :
 
-export function LeadCard({ lead }: { lead: Lead }) {
-  const router = useRouter();
-
-  return (
-    <div className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold">
-          {lead.nom} {lead.prenom}
-        </h3>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
-        >
-          <Eye className="h-4 w-4 mr-2" />
-          Voir
-        </Button>
-      </div>
-      
-      <div className="space-y-1 text-sm text-gray-600">
-        <p>{lead.email}</p>
-        <p>{lead.telephone}</p>
-      </div>
-      
-      {/* Alternative: Make entire card clickable */}
-      <Link 
-        href={`/dashboard/leads/${lead.id}`}
-        className="absolute inset-0"
-        aria-label={`View details for ${lead.nom} ${lead.prenom}`}
-      />
-    </div>
-  );
-}
-```
+1. Consultez le [CHANGELOG](./components/leads/CHANGELOG.md) pour les futures fonctionnalités
+2. Explorez les [exemples](./components/leads/examples/) pour des cas d'usage avancés
+3. Personnalisez les composants selon vos besoins
+4. Partagez vos retours pour améliorer les fonctionnalités
