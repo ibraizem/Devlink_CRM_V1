@@ -55,7 +55,7 @@ export function useCrmData(): UseCrmDataReturn {
       const { data: files, error } = await supabase
         .from('fichiers_import')
         .select('*')
-        .eq('user_id', userId)
+        .eq('clerk_user_id', userId)
         .eq('statut', 'actif')
         .order('created_at', { ascending: false });
       

@@ -85,7 +85,7 @@ export const fileService = {
    * Récupère la liste des fichiers avec filtrage et pagination
    */
   getFiles: async (
-    userId: string,
+    clerkUserId: string,
     filters: FileFilterOptions = {},
     page = 1,
     pageSize = 20
@@ -94,7 +94,7 @@ export const fileService = {
       let query = supabase
         .from('fichiers_import')
         .select('*', { count: 'exact' })
-        .eq('user_id', userId);
+        .eq('clerk_user_id', clerkUserId);
 
       if (filters.status && filters.status !== 'all') {
         query = query.eq('statut', filters.status);
@@ -132,16 +132,16 @@ export const fileService = {
    * Téléverse un fichier avec suivi de progression
    */
   uploadFile: async (file: File, options: FileUploadOptions): Promise<FichierImport> => {
-    const { user_id, onProgress } = options;
+    const { user_id: clerkUserId, onProgress } = options;
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     
     // Utiliser le dossier utilisateur pour le stockage
-    const filePath = `${user_id}/${fileName}`;
+    const filePath = `${clerkUserId}/${fileName}`;
 
     try {
       // S'assurer que le bucket et le dossier utilisateur existent
-      await ensureBucketExists(user_id);
+      await ensureBucketExists(clerkUserId);
 
       const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
       if (file.size > MAX_FILE_SIZE) {
@@ -183,7 +183,7 @@ export const fileService = {
         nb_lignes_importees: 0,
         mapping_colonnes: {},
         separateur: ',',
-        user_id,
+        clerk_user_id: clerkUserId,
         // Champs supplémentaires requis par le type FichierImport
         chemin_fichier: filePath,
         mime_type: file.type,
@@ -225,8 +225,8 @@ export const fileService = {
         mapping_colonnes: {}, // JSONB non-null avec valeur par défaut {}
         separateur: ',',
         
-        // Clé étrangère obligatoire
-        user_id: fileData.user_id,
+        // Clé étrangère obligatoire (Clerk user ID)
+        clerk_user_id: (fileData as any).clerk_user_id,
         
         // Champs optionnels
         original_filename: fileData.original_filename || fileData.nom,
@@ -238,8 +238,8 @@ export const fileService = {
       };
       
       // Vérification des contraintes
-      if (!insertData.user_id) {
-        throw new Error('user_id est obligatoire pour créer un enregistrement de fichier');
+      if (!insertData.clerk_user_id) {
+        throw new Error('clerk_user_id est obligatoire pour créer un enregistrement de fichier');
       }
 
       console.log('Données simplifiées pour l\'insertion:', JSON.stringify(insertData, null, 2));
@@ -370,12 +370,12 @@ export const fileService = {
   /**
    * Récupère les colonnes personnalisées d'un utilisateur
    */
-  getCustomColumns: async (userId: string): Promise<CustomColumn[]> => {
+  getCustomColumns: async (clerkUserId: string): Promise<CustomColumn[]> => {
     try {
       const { data, error } = await supabase
         .from('user_custom_columns')
         .select('*')
-        .eq('user_id', userId)
+        .eq('clerk_user_id', clerkUserId)
         .order('created_at', { ascending: true });
 
       if (error) {

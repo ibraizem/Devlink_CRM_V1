@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Calendar, TrendingUp, Phone } from 'lucide-react';
 import { createClient } from '@/lib/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -15,12 +16,14 @@ export default function DashboardPage() {
     recrutes: 0,
   });
   const router = useRouter();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
     const supabase = createClient();
     type Lead = { statut: string };
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
         return;
@@ -39,7 +42,7 @@ export default function DashboardPage() {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   return (
     <div className="flex h-screen bg-slate-50">

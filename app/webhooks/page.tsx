@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { createClient } from '@/lib/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { WebhookList } from '@/components/webhooks/WebhookList';
 import { WebhookDialog } from '@/components/webhooks/WebhookDialog';
 import { Webhook } from '@/types/webhooks';
+import { useUser } from '@clerk/nextjs';
 
 export default function WebhooksPage() {
   const router = useRouter();
@@ -16,18 +16,19 @@ export default function WebhooksPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<Webhook | undefined>();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
-    const supabase = createClient();
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
       }
     };
     checkAuth();
     loadWebhooks();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   const loadWebhooks = async () => {
     try {

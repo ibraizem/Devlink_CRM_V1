@@ -8,3 +8,14 @@ export const createClient = () =>
     supabaseUrl!,
     supabaseKey!,
   );
+
+export async function getUserProfileIdClient(clerkUserId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('users_profile')
+    .select('id')
+    .eq('clerk_user_id', clerkUserId)
+    .maybeSingle();
+  
+  return data?.id || null;
+}

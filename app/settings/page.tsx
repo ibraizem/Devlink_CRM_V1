@@ -3,22 +3,23 @@
 import { useEffect } from 'react';
 import  Sidebar from '@/components/Sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { createClient } from '@/lib/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
-    const supabase = createClient();
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
       }
     };
     checkAuth();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   return (
     <div className="flex h-screen bg-slate-50">

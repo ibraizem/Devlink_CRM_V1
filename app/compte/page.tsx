@@ -2,24 +2,25 @@
 
 import { UserProfile } from '@/components/user/UserProfile';
 import  Sidebar from '@/components/Sidebar';
-import { createClient } from '@/lib/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   return (
     <div className="flex h-screen bg-slate-50">

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/utils/supabase/client';
+import { auth } from '@clerk/nextjs/server';
 
 export type Lead = { [key: string]: any };
 
@@ -87,14 +88,24 @@ export async function createLead(lead: Partial<Lead>) {
     .select()
     .single();
   if (data && !error) {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
-      lead_id: data.id,
-      agent_id: user?.id,
-      type_action: 'lead_assigne',
-      description: 'Lead créé',
-      metadata: { lead_data: lead },
-    });
+    const { userId } = await auth();
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('id')
+        .eq('clerk_user_id', userId)
+        .maybeSingle();
+      
+      if (profile) {
+        await supabase.from('historique_actions').insert({
+          lead_id: data.id,
+          agent_id: profile.id,
+          type_action: 'lead_assigne',
+          description: 'Lead créé',
+          metadata: { lead_data: lead },
+        });
+      }
+    }
   }
   return { data, error };
 }
@@ -108,14 +119,24 @@ export async function updateLead(id: string, updates: Partial<Lead>) {
     .select()
     .single();
   if (data && !error && updates.statut) {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
-      lead_id: data.id,
-      agent_id: user?.id,
-      type_action: 'statut_change',
-      description: `Statut changé en ${updates.statut}`,
-      metadata: { old_statut: data.statut, new_statut: updates.statut },
-    });
+    const { userId } = await auth();
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('id')
+        .eq('clerk_user_id', userId)
+        .maybeSingle();
+      
+      if (profile) {
+        await supabase.from('historique_actions').insert({
+          lead_id: data.id,
+          agent_id: profile.id,
+          type_action: 'statut_change',
+          description: `Statut changé en ${updates.statut}`,
+          metadata: { old_statut: data.statut, new_statut: updates.statut },
+        });
+      }
+    }
   }
   return { data, error };
 }
@@ -141,12 +162,26 @@ export async function getLeadNotes(leadId: string) {
 
 export async function createNote(leadId: string, contenu: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { userId } = await auth();
+  if (!userId) {
+    return { data: null, error: new Error('User not authenticated') };
+  }
+  
+  const { data: profile } = await supabase
+    .from('users_profile')
+    .select('id')
+    .eq('clerk_user_id', userId)
+    .maybeSingle();
+  
+  if (!profile) {
+    return { data: null, error: new Error('User profile not found') };
+  }
+  
   const { data, error } = await supabase
     .from('notes')
     .insert({
       lead_id: leadId,
-      auteur_id: user?.id,
+      auteur_id: profile.id,
       contenu,
     })
     .select()
@@ -154,7 +189,7 @@ export async function createNote(leadId: string, contenu: string) {
   if (data && !error) {
     await supabase.from('historique_actions').insert({
       lead_id: leadId,
-      agent_id: user?.id,
+      agent_id: profile.id,
       type_action: 'note',
       description: 'Note ajoutée',
       metadata: { note_id: data.id },
@@ -192,14 +227,24 @@ export async function assignLeadToAgent(leadId: string, agentId: string) {
     .select()
     .single();
   if (data && !error) {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('historique_actions').insert({
-      lead_id: leadId,
-      agent_id: user?.id, // L'agent qui fait l'assignation
-      type_action: 'lead_assigne',
-      description: `Lead assigné à l'agent ${agentId}`,
-      metadata: { new_agent_id: agentId },
-    });
+    const { userId } = await auth();
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('id')
+        .eq('clerk_user_id', userId)
+        .maybeSingle();
+      
+      if (profile) {
+        await supabase.from('historique_actions').insert({
+          lead_id: leadId,
+          agent_id: profile.id,
+          type_action: 'lead_assigne',
+          description: `Lead assigné à l'agent ${agentId}`,
+          metadata: { new_agent_id: agentId },
+        });
+      }
+    }
   }
   return { data, error };
 }
@@ -334,7 +379,20 @@ export async function getLeadAttachments(leadId: string) {
 
 export async function uploadAttachment(leadId: string, file: File) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { userId } = await auth();
+  if (!userId) {
+    return { data: null, error: new Error('User not authenticated') };
+  }
+  
+  const { data: profile } = await supabase
+    .from('users_profile')
+    .select('id')
+    .eq('clerk_user_id', userId)
+    .maybeSingle();
+  
+  if (!profile) {
+    return { data: null, error: new Error('User profile not found') };
+  }
   
   const fileExt = file.name.split('.').pop();
   const fileName = `${leadId}/${Date.now()}.${fileExt}`;
@@ -359,7 +417,7 @@ export async function uploadAttachment(leadId: string, file: File) {
       fichier_url: urlData.publicUrl,
       fichier_type: file.type,
       fichier_taille: file.size,
-      uploaded_by: user?.id,
+      uploaded_by: profile.id,
     })
     .select('*, users_profile:uploaded_by(nom, prenom)')
     .single();
@@ -367,7 +425,7 @@ export async function uploadAttachment(leadId: string, file: File) {
   if (data && !error) {
     await supabase.from('historique_actions').insert({
       lead_id: leadId,
-      agent_id: user?.id,
+      agent_id: profile.id,
       type_action: 'note',
       description: `Fichier ajouté: ${file.name}`,
       metadata: { attachment_id: data.id },
@@ -406,13 +464,26 @@ export async function logCommunication(
   metadata?: Record<string, any>
 ) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { userId } = await auth();
+  if (!userId) {
+    return { data: null, error: new Error('User not authenticated') };
+  }
+  
+  const { data: profile } = await supabase
+    .from('users_profile')
+    .select('id')
+    .eq('clerk_user_id', userId)
+    .maybeSingle();
+  
+  if (!profile) {
+    return { data: null, error: new Error('User profile not found') };
+  }
   
   const { data, error } = await supabase
     .from('historique_actions')
     .insert({
       lead_id: leadId,
-      agent_id: user?.id,
+      agent_id: profile.id,
       type_action: type,
       description,
       metadata,

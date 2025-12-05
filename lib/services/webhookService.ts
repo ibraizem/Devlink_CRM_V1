@@ -42,10 +42,17 @@ class WebhookService {
     }
   }
 
-  async createWebhook(webhook: Omit<Webhook, 'id' | 'created_at' | 'updated_at' | 'secret_key'>): Promise<Webhook> {
+  async createWebhook(webhook: Omit<Webhook, 'id' | 'created_at' | 'updated_at' | 'secret_key'>, clerkUserId: string): Promise<Webhook> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!clerkUserId) throw new Error('User not authenticated');
+
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('id')
+        .eq('clerk_user_id', clerkUserId)
+        .maybeSingle();
+      
+      if (!profile) throw new Error('User profile not found');
 
       const secretKey = this.generateSecretKey();
 
@@ -54,7 +61,7 @@ class WebhookService {
         .insert({
           ...webhook,
           secret_key: secretKey,
-          created_by: user.id,
+          created_by: profile.id,
         })
         .select()
         .single();

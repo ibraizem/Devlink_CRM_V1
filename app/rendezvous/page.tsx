@@ -7,17 +7,20 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User } from 'lucide-react';
 import { createClient } from '@/lib/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 
 export default function RendezvousPage() {
   type Rendezvous = { [key: string]: any };
   const [rendezvous, setRendezvous] = useState<Rendezvous[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
     const supabase = createClient();
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
         return;
@@ -25,7 +28,7 @@ export default function RendezvousPage() {
       loadRendezvous(supabase);
     };
     checkAuth();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   const loadRendezvous = async (supabase: any) => {
     setLoading(true);

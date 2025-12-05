@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Download, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import { createClient } from '@/lib/utils/supabase/client';
 import { analyticsService } from '@/lib/services/analyticsService';
 import { getAgents } from '@/lib/types/leads';
 import type { AnalyticsSummary, ConversionFunnelData, ChannelPerformance, AgentPerformance, LeadSourceAttribution, TimeSeriesData, AnalyticsFilters, DateRange } from '@/types/analytics';
@@ -20,6 +19,7 @@ import { ConversionFunnelTab } from '@/components/analytics/ConversionFunnelTab'
 import { ChannelPerformanceTab } from '@/components/analytics/ChannelPerformanceTab';
 import { AgentPerformanceTab } from '@/components/analytics/AgentPerformanceTab';
 import { LeadSourcesTab } from '@/components/analytics/LeadSourcesTab';
+import { useUser } from '@clerk/nextjs';
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -42,12 +42,12 @@ export default function AnalyticsPage() {
     },
   });
 
+  const { user, isLoaded } = useUser();
+
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      if (!isLoaded) return;
+      
       if (!user) {
         router.push('/auth/login');
         return;
@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
       loadAgents();
     };
     checkAuth();
-  }, [router]);
+  }, [router, user, isLoaded]);
 
   useEffect(() => {
     if (filters) loadData();

@@ -217,8 +217,9 @@ export function useFileManager() {
   }, []);
 
   // Gérer l'upload d'un fichier
-  const handleFileUpload = useCallback(async (file: File, options: { mapping?: Record<string, string> } = {}) => {
+  const handleFileUpload = useCallback(async (file: File, options: { mapping?: Record<string, string>, clerkUserId?: string } = {}) => {
     const mapping = options.mapping || {};
+    const clerkUserId = options.clerkUserId;
     let fichierData: any = null;
     const supabase = createClient();
     
@@ -227,8 +228,7 @@ export function useFileManager() {
       setUploadError(null);
 
       // 1. Vérifier que l'utilisateur est connecté
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (!clerkUserId) {
         throw new Error('Utilisateur non connecté');
       }
 
@@ -242,7 +242,7 @@ export function useFileManager() {
           nom: file.name,
           chemin: filePath,
           statut: 'en_cours',
-          user_id: user.id,
+          clerk_user_id: clerkUserId,
           mapping_colonnes: mapping,
           nb_lignes: 0,
           nb_lignes_importees: 0,
@@ -355,11 +355,11 @@ export function useFileManager() {
   // pour être définies une seule fois et utilisées dans toute l'application
 
   // Charger les fichiers pour un utilisateur spécifique via le service
-  const loadFiles = useCallback(async (userId: string) => {
+  const loadFiles = useCallback(async (clerkUserId: string) => {
     setIsLoading(true);
     try {
       // Pass empty filters as second argument and get the data property from the response
-      const { data } = await fileService.getFiles(userId, {}, 1, 20);
+      const { data } = await fileService.getFiles(clerkUserId, {}, 1, 20);
       // Map FichierImport[] to FileData[]
       const fileData = data.map(file => ({
         ...file,

@@ -26,11 +26,6 @@ export function useFileData() {
       setLoading(true);
       console.log('Récupération des données depuis Supabase...');
       
-      // Vérifier la connexion à Supabase
-      console.log('Vérification de la connexion Supabase...');
-      const { data: userData, error: authError } = await supabase.auth.getUser();
-      console.log('Utilisateur authentifié:', userData?.user?.email || 'Non connecté', authError);
-      
       // Récupérer les données
       console.log('Récupération des données de la table fichier_donnees...');
       const { data: fileData, error: fetchError, status, count } = await supabase
