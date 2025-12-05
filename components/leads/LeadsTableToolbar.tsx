@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Download, Columns, Search, Filter, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColumnDefinition } from '@/types/leads';
+import { SelectionHelpTooltip } from './SelectionHelpTooltip';
 
 interface ColumnOption {
   key: string;
@@ -50,6 +51,13 @@ export function LeadsTableToolbar({
             className="w-full pl-9 pr-4 py-2 h-9"
             aria-label="Rechercher des leads"
           />
+          {selectedCount > 0 && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
+                {selectedCount}
+              </span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -65,6 +73,7 @@ export function LeadsTableToolbar({
               <span className="hidden sm:inline">Actualiser</span>
             </Button>
           )}
+          <SelectionHelpTooltip />
         </div>
       </div>
 

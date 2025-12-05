@@ -307,6 +307,101 @@ export const leadService = {
   },
 
   /**
+   * Met à jour le statut de plusieurs leads
+   */
+  async updateMultipleLeadsStatus(
+    leadIds: string[], 
+    status: LeadStatus,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < leadIds.length; i++) {
+      try {
+        await this.updateLeadStatus(leadIds[i], status);
+        success++;
+      } catch (error) {
+        console.error(`Erreur lors de la mise à jour du lead ${leadIds[i]}:`, error);
+        failed++;
+      }
+      
+      if (onProgress) {
+        onProgress(i + 1, leadIds.length);
+      }
+    }
+
+    return { success, failed };
+  },
+
+  /**
+   * Supprime plusieurs leads
+   */
+  async deleteMultipleLeads(
+    leadIds: string[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < leadIds.length; i++) {
+      try {
+        await this.deleteLead(leadIds[i]);
+        success++;
+      } catch (error) {
+        console.error(`Erreur lors de la suppression du lead ${leadIds[i]}:`, error);
+        failed++;
+      }
+      
+      if (onProgress) {
+        onProgress(i + 1, leadIds.length);
+      }
+    }
+
+    return { success, failed };
+  },
+
+  /**
+   * Attribue plusieurs leads à un utilisateur
+   */
+  async assignMultipleLeads(
+    leadIds: string[],
+    userId: string,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < leadIds.length; i++) {
+      try {
+        const { error } = await supabase
+          .from('fichier_donnees')
+          .update({ 
+            donnees: supabase.rpc('jsonb_set', {
+              target: 'donnees',
+              path: '{assigned_to}',
+              new_value: `"${userId}"`
+            }),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', leadIds[i]);
+
+        if (error) throw error;
+        success++;
+      } catch (error) {
+        console.error(`Erreur lors de l'attribution du lead ${leadIds[i]}:`, error);
+        failed++;
+      }
+      
+      if (onProgress) {
+        onProgress(i + 1, leadIds.length);
+      }
+    }
+
+    return { success, failed };
+  },
+
+  /**
    * Exporte les leads au format CSV
    */
   async exportLeadsToCsv(fileIds: string[], columns: string[]): Promise<Blob> {

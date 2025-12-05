@@ -20,7 +20,14 @@ components/leads/
 ├── FullscreenTable.tsx          # Mode plein écran avec raccourcis
 ├── GlobalSearch.tsx             # Recherche globale avec highlighting
 ├── LeadsTableDemo.tsx           # Composant de démonstration
+├── BulkActionsBar.tsx           # Barre d'actions groupées
+├── BulkActionProgress.tsx       # Indicateur de progression
+├── BulkAssignModal.tsx          # Attribution à un utilisateur
+├── BulkEmailModal.tsx           # Envoi d'emails groupés
+├── BulkSmsModal.tsx             # Envoi de SMS groupés
+├── SelectionHelpTooltip.tsx     # Aide contextuelle
 ├── ADVANCED_FEATURES.md         # Documentation détaillée
+├── SELECTION_SYSTEM.md          # Documentation système sélection
 └── README.md                    # Ce fichier
 ```
 
@@ -69,11 +76,36 @@ Composant tout-en-un qui intègre toutes les fonctionnalités avancées.
 - ✅ Filtres par colonne avec autocomplete
 - ✅ Export multi-format (CSV, Excel, JSON)
 - ✅ Mode plein écran (Ctrl+F)
-- ✅ Sélection multiple
+- ✅ Sélection multiple avancée
 - ✅ Tri et pagination
 - ✅ Actions CRUD complètes
 
-### 2. LeadsTableDemo
+### 2. RawLeadsTable (Avec Sélection Multiple)
+
+Composant principal du tableau avec gestion complète de la sélection.
+
+**Props:**
+```typescript
+interface RawLeadsTableProps<T extends Lead> {
+  data: T[];                              // Données des leads
+  columns: Array<ColumnDefinition<T>>;    // Définitions des colonnes
+  onExport: (selectedIds: string[]) => void;  // Handler d'export
+  onRefresh?: () => void;                 // Handler de rafraîchissement
+}
+```
+
+**Fonctionnalités de sélection:**
+- ✅ Sélection par checkbox
+- ✅ Shift+Click pour sélection en plage
+- ✅ Ctrl/Cmd+Click pour sélection multiple
+- ✅ Sélection de toutes les lignes (toutes pages)
+- ✅ Barre d'actions groupées flottante
+- ✅ Indicateur du nombre de lignes sélectionnées
+- ✅ Raccourcis clavier (Ctrl+A, Escape)
+- ✅ Animations fluides
+- ✅ Progress tracking pour actions longues
+
+### 3. LeadsTableDemo
 
 Composant de démonstration avec documentation visuelle intégrée.
 
@@ -86,7 +118,7 @@ Composant de démonstration avec documentation visuelle intégrée.
 - Badges pour chaque raccourci clavier
 - Wrapper Card avec titre et description
 
-### 3. CellContextMenu
+### 4. CellContextMenu
 
 Menu contextuel activé par clic droit sur les cellules.
 
@@ -99,7 +131,7 @@ Menu contextuel activé par clic droit sur les cellules.
 - `onStatusChange?: (lead, status) => void` - Changement de statut
 - `onCopyCell, onCopyRow, onFilterByValue` - Actions contextuelles
 
-### 4. GlobalSearch
+### 5. GlobalSearch
 
 Recherche globale avec highlighting des résultats.
 
@@ -110,7 +142,7 @@ Recherche globale avec highlighting des résultats.
 
 **Raccourci:** ⌘K (Mac) ou Ctrl+K (Windows/Linux)
 
-### 5. ColumnFilters
+### 6. ColumnFilters
 
 Système de filtres par colonne avec autocomplete.
 
@@ -120,7 +152,7 @@ Système de filtres par colonne avec autocomplete.
 - `filters: Record<string, string[]>` - Filtres actifs
 - `onFiltersChange: (filters) => void` - Callback de changement
 
-### 6. ExportDialog
+### 7. ExportDialog
 
 Dialog d'export avec options personnalisables.
 
@@ -135,7 +167,7 @@ Dialog d'export avec options personnalisables.
 - Excel (.xlsx) avec formatage
 - JSON (pour intégrations)
 
-### 7. FullscreenTable
+### 8. FullscreenTable
 
 Mode plein écran avec raccourcis clavier.
 
@@ -148,6 +180,39 @@ Mode plein écran avec raccourcis clavier.
 - `Ctrl+F` : Activer/désactiver plein écran
 - `Échap` : Quitter le plein écran
 - `Shift+?` : Afficher les raccourcis
+
+### 9. Composants de Sélection Multiple
+
+#### BulkActionsBar
+Barre d'actions groupées flottante (bottom) avec :
+- Compteur de sélections
+- 6 actions : Assigner, Statut, Email, SMS, Export, Supprimer
+- Animation Framer Motion
+
+#### BulkActionProgress
+Indicateur de progression en haut de l'écran avec :
+- Barre de progression
+- Compteur : X / Total
+- États : processing, success, error
+
+#### BulkAssignModal
+Modal d'attribution à un utilisateur avec :
+- Liste déroulante des utilisateurs
+- Résumé avant exécution
+- Progress tracking
+
+#### BulkEmailModal
+Modal d'envoi d'emails groupés avec :
+- Champs : Objet, Message
+- Support des variables : {nom}, {prenom}, {email}
+
+#### BulkSmsModal
+Modal d'envoi de SMS groupés avec :
+- Limite de 160 caractères avec compteur
+- Support des variables : {nom}, {prenom}
+
+#### SelectionHelpTooltip
+Tooltip d'aide contextuelle affichant les raccourcis disponibles.
 
 ## 🎯 Exemples d'Utilisation
 
@@ -171,6 +236,30 @@ function MyLeadsPage() {
       onRefresh={() => fetchLeads()}
     />
   )
+}
+```
+
+### Exemple Avec Sélection Multiple
+
+```tsx
+import { RawLeadsTable } from '@/components/leads/RawLeadsTable';
+import { useCrmData2 } from '@/hooks/useCrmData2';
+
+function LeadsPage() {
+  const { data, columns, refresh } = useCrmData2(selectedFileIds);
+
+  const handleExport = (selectedIds: string[]) => {
+    // Logique d'export
+  };
+
+  return (
+    <RawLeadsTable
+      data={data}
+      columns={columns}
+      onExport={handleExport}
+      onRefresh={refresh}
+    />
+  );
 }
 ```
 
@@ -237,6 +326,11 @@ function MyTableCell({ lead, value }) {
 
 Tous les composants utilisent les tokens de couleur Tailwind et s'adaptent automatiquement au mode sombre.
 
+Les couleurs de sélection utilisent :
+- `bg-primary` : Barre d'actions
+- `bg-blue-50` : Lignes sélectionnées
+- `border-blue-500` : Bordure de sélection
+
 ### Styling
 
 Vous pouvez personnaliser l'apparence avec des classes Tailwind :
@@ -269,6 +363,20 @@ Tous les callbacks sont optionnels et peuvent être personnalisés :
 </CellContextMenu>
 ```
 
+### Colonnes Visibles
+
+Minimum 3 colonnes obligatoires (configurable dans `RawLeadsTable.tsx`) :
+```typescript
+const essentialColumns = ['name', 'firstname', 'phone', 'email', 'company'];
+```
+
+### Pagination
+
+Taille de page par défaut : 25 lignes (configurable dans `useLeadsTable.ts`) :
+```typescript
+const [pageSize, setPageSize] = useState(25);
+```
+
 ## 🔧 Hook Personnalisé
 
 Pour une gestion d'état avancée :
@@ -292,15 +400,96 @@ const {
 } = useAdvancedTableInteractions(leads)
 ```
 
+## 🚀 Fonctionnalités de Sélection
+
+### Modes de Sélection
+- **Click simple** : Sélectionner/désélectionner une ligne
+- **Ctrl/Cmd+Click** : Ajouter des lignes à la sélection
+- **Shift+Click** : Sélectionner une plage de lignes
+- **Checkbox en-tête** : Sélectionner toute la page
+- **Bouton "Tout sélectionner"** : Sélectionner toutes les lignes (toutes pages)
+
+### Raccourcis Clavier
+- `Ctrl+A` / `Cmd+A` : Tout sélectionner
+- `Escape` : Désélectionner tout
+- Les raccourcis sont désactivés dans les champs de saisie
+
+### Indicateurs Visuels
+- Lignes sélectionnées : Fond bleu clair + bordure gauche bleue
+- Checkbox d'en-tête : État indéterminé si sélection partielle
+- Badge de comptage dans la barre de recherche
+- Barre d'actions avec compteur
+
+### Actions Groupées
+
+#### 1. Assigner
+- Attribuer les leads à un utilisateur
+- Liste déroulante des utilisateurs
+- Résumé avant exécution
+
+#### 2. Changer le Statut
+- 4 statuts disponibles : Nouveau, En cours, Traité, Abandonné
+- Menu déroulant avec indicateurs de couleur
+- Mise à jour en masse avec progress tracking
+
+#### 3. Envoyer Email
+- Composer un email pour tous les leads sélectionnés
+- Champs : Objet, Message
+- Support des variables : {nom}, {prenom}, {email}
+
+#### 4. Envoyer SMS
+- Composer un SMS pour tous les leads sélectionnés
+- Limite de 160 caractères avec compteur
+- Support des variables : {nom}, {prenom}
+
+#### 5. Exporter
+- Export CSV des leads sélectionnés
+- Inclut toutes les colonnes visibles
+
+#### 6. Supprimer
+- Suppression en masse avec confirmation
+- Progress tracking
+- Compte rendu : succès/échecs
+
 ## 📚 Documentation Complète
 
-Voir [ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md) pour :
-- Documentation détaillée de chaque composant
-- Guide des raccourcis clavier
-- Bonnes pratiques
-- Considérations de performance
-- Accessibilité
-- Sécurité
+### Documentation Principale
+- **[ADVANCED_FEATURES.md](./ADVANCED_FEATURES.md)** : Documentation détaillée des fonctionnalités avancées
+- **[SELECTION_SYSTEM.md](./SELECTION_SYSTEM.md)** : Documentation complète du système de sélection
+- **[EXTENDING_SELECTION.md](./EXTENDING_SELECTION.md)** : Guide pour étendre le système de sélection
+
+### Guide des Raccourcis Clavier
+- `⌘K / Ctrl+K` : Recherche globale
+- `Ctrl+F` : Mode plein écran
+- `Ctrl+A / Cmd+A` : Tout sélectionner
+- `Escape` : Désélectionner tout / Quitter plein écran
+- `Shift+?` : Afficher les raccourcis (en mode plein écran)
+
+### Bonnes Pratiques
+- Utiliser `EnhancedLeadsTable` pour une intégration rapide
+- Utiliser les composants séparés pour plus de contrôle
+- Toujours fournir des callbacks pour les actions
+- Gérer les états de chargement et d'erreur
+- Valider les données avant export
+
+### Considérations de Performance
+- Limiter le nombre de lignes affichées avec pagination
+- Utiliser la virtualisation pour de très grandes listes
+- Mémoriser les résultats de recherche/filtrage coûteux
+- Débouncer les opérations de recherche
+
+### Accessibilité
+- Tous les contrôles ont des labels ARIA appropriés
+- Navigation complète au clavier
+- Support des lecteurs d'écran
+- Indicateurs visuels clairs
+- Gestion appropriée du focus
+
+### Sécurité
+- Validation des données avant export
+- Échappement correct des caractères spéciaux
+- Sanitization des valeurs JSON
+- Confirmation pour actions destructives
 
 ## 🧪 Exemples Interactifs
 
@@ -333,6 +522,39 @@ import { BasicExample, ContextMenuExample, ExportExample } from '@/components/le
 - Appuyez sur `Échap`
 - Vérifiez la console pour d'éventuelles erreurs JavaScript
 
+### Sélection ne fonctionne pas
+- Vérifier que les leads ont un `id` unique
+- Vérifier que le hook `useLeadsTable` est bien initialisé
+
+### Shift-Click ne fonctionne pas
+- S'assurer que l'index est bien passé à `LeadsTableRow`
+- Vérifier que `lastSelectedIndex` est bien trackée
+
+### Actions groupées n'apparaissent pas
+- Vérifier que `BulkActionsBar` reçoit bien `selectedCount > 0`
+- Vérifier l'ordre z-index (should be z-50)
+
+## 🔐 Permissions
+
+Certaines actions peuvent nécessiter des permissions spécifiques :
+- Suppression : Peut être réservée aux admins
+- Attribution : Peut nécessiter un rôle manager
+- Export : Peut être limité par quotas
+
+Ces permissions doivent être implémentées dans les handlers.
+
+## ⚡ Performance
+
+### Optimisations Actuelles
+- Set pour les sélections (O(1) lookup)
+- Mémoization avec useMemo/useCallback
+- Pagination pour limiter le DOM
+- Debouncing sur la recherche
+- AnimatePresence pour smooth unmount
+
+### Pour Grandes Listes (>1000 lignes)
+Considérez l'utilisation de TanStack Virtual (voir EXTENDING_SELECTION.md)
+
 ## 🤝 Contribution
 
 Pour ajouter de nouvelles fonctionnalités :
@@ -340,7 +562,7 @@ Pour ajouter de nouvelles fonctionnalités :
 1. Créez un nouveau composant dans ce dossier
 2. Ajoutez-le à `advanced/index.ts` pour l'export
 3. Créez un exemple dans `examples/`
-4. Documentez dans `ADVANCED_FEATURES.md`
+4. Documentez dans `ADVANCED_FEATURES.md` ou `SELECTION_SYSTEM.md`
 5. Mettez à jour ce README
 
 ## 📄 Licence

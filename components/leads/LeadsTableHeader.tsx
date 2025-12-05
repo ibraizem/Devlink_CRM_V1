@@ -1,5 +1,6 @@
 'use client';
 import { TableHead, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { ColumnDefinition } from '@/types/leads';
 
@@ -9,6 +10,9 @@ interface LeadsTableHeaderProps<T> {
   sortDir: 'asc' | 'desc';
   onSort: (key: string) => void;
   renderHeaderCell?: (col: ColumnDefinition<T>) => React.ReactNode | null;
+  onSelectAll?: (checked: boolean) => void;
+  isAllSelected?: boolean;
+  isSomeSelected?: boolean;
 }
 
 export function LeadsTableHeader<T>({ 
@@ -16,10 +20,25 @@ export function LeadsTableHeader<T>({
   sortKey, 
   sortDir, 
   onSort,
-  renderHeaderCell 
+  renderHeaderCell,
+  onSelectAll,
+  isAllSelected = false,
+  isSomeSelected = false,
 }: LeadsTableHeaderProps<T>) {
   return (
     <TableRow className="bg-gray-100">
+      <TableHead className="w-10">
+        {onSelectAll && (
+          <div className="flex items-center justify-center">
+            <Checkbox 
+              checked={isAllSelected}
+              onCheckedChange={onSelectAll}
+              aria-label="Sélectionner toute la page"
+              className={isSomeSelected && !isAllSelected ? 'opacity-50' : ''}
+            />
+          </div>
+        )}
+      </TableHead>
       {columns.map((col: ColumnDefinition<T>) => {
         const customCell = renderHeaderCell?.(col)
         
