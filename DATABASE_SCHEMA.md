@@ -2,12 +2,38 @@
 
 This document describes the database tables and storage buckets required for the lead detail view features.
 
+## Authentication
+
+The system supports dual authentication methods:
+- **Supabase Auth**: Traditional authentication using `auth.users` and `auth.uid()`
+- **Clerk Auth**: Modern authentication using Clerk with JWT tokens
+
+See `lib/utils/supabase/migrations/README_CLERK_MIGRATION.md` for Clerk integration details.
+
 ## Required Tables
 
-### 1. leads
+### 1. users_profile
+User profiles that extend authentication data.
+
+**Columns:**
+- `id` (uuid, primary key, nullable) - Supabase Auth user ID (nullable for Clerk-only users)
+- `clerk_user_id` (text, unique) - Clerk user ID (format: user_xxxxx)
+- `nom` (text) - Last name
+- `prenom` (text) - First name
+- `role` (text) - User role: 'admin', 'manager', 'telepro'
+- `actif` (boolean) - Active status
+- `avatar_url` (text) - Profile picture URL
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
+
+**Constraints:**
+- Either `id` or `clerk_user_id` must be present
+- `clerk_user_id` is unique when not null
+
+### 2. leads
 Already exists in the system. Main leads table.
 
-### 2. notes
+### 3. notes
 Already exists. Used for storing lead notes.
 
 **Columns:**
