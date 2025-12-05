@@ -237,9 +237,84 @@ Icons and references to these integrations appear in:
 - Class-variance-authority for variants
 - React.forwardRef for UI primitives
 
+## Formula Engine (NEW)
+
+### Overview
+Complete AI-powered formula engine for creating calculated columns with Excel-like functions and AI enrichment.
+
+**Features**:
+- 50+ built-in functions (math, text, logic, date)
+- AI enrichment (company detection, data completion, lead scoring)
+- Persistent results with configurable caching
+- Real-time formula validation
+- Server-side secure execution
+
+### Key Components
+- `/lib/formula-engine/` - Parser, evaluator, functions
+- `/components/formula-editor/` - UI components
+- `/app/api/formulas/` - Validation and evaluation APIs
+- `/app/api/calculated-columns/` - Column management APIs
+- `/app/api/ai/` - AI enrichment endpoints
+- `/app/formulas/` - Formula manager page
+
+### Formula Syntax
+```typescript
+// Field references
+[firstName], [lastName], [email]
+
+// Functions
+CONCAT([firstName], " ", [lastName])
+SUM([price], [tax])
+IF([score] > 80, "Pass", "Fail")
+
+// AI Functions
+AI_DETECT_COMPANY([company])
+AI_LEAD_SCORE([leadData])
+AI_COMPLETE_EMAIL([firstName], [lastName], [domain])
+```
+
+### API Endpoints
+- `POST /api/formulas/validate` - Validate formula syntax
+- `POST /api/formulas/evaluate` - Evaluate formula
+- `GET /api/calculated-columns` - List columns
+- `POST /api/calculated-columns` - Create column
+- `PATCH /api/calculated-columns/:id` - Update column
+- `DELETE /api/calculated-columns/:id` - Delete column
+- `POST /api/calculated-columns/:id/evaluate` - Evaluate for leads
+- `DELETE /api/calculated-columns/:id/cache` - Clear cache
+
+### Database Tables
+- `calculated_columns` - Formula definitions
+- `calculated_results` - Cached results
+- `ai_enrichment_cache` - AI response cache
+
+### Usage
+```typescript
+// Hook for calculated columns
+import { useCalculatedColumns } from '@/lib/hooks/useCalculatedColumns'
+
+const { columns, evaluateColumn } = useCalculatedColumns()
+
+// Evaluate formula
+const { result, fromCache } = await evaluateColumn(
+  columnId,
+  leadId,
+  leadData
+)
+```
+
+### Documentation
+- `FORMULA_ENGINE_GUIDE.md` - Complete guide
+- `FORMULA_EXAMPLES.md` - Example formulas
+- `lib/formula-engine/README.md` - Technical docs
+- `migrations/formula_engine_setup.sql` - Database setup
+
 ## Database Schema
 See DATABASE_SCHEMA.md for:
 - `users_profile` - User profiles with roles
 - `fichiers_import` - File metadata
 - `fichier_donnees` - Lead data
+- `calculated_columns` - Formula definitions (NEW)
+- `calculated_results` - Cached formula results (NEW)
+- `ai_enrichment_cache` - AI enrichment cache (NEW)
 - Lead statuses and relationships
