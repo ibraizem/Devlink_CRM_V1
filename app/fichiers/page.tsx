@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { createClient } from '@/lib/utils/supabase/client';
-import { RefreshCw, X, Save } from 'lucide-react';
+import { RefreshCw, X, Save, FileSync } from 'lucide-react';
 import React from 'react';
 import * as XLSX from 'xlsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -17,6 +17,8 @@ import { useUser } from '@/hooks/useUser';
 import { FileUploader } from '@/components/fichiers/FileUploader';
 import { FilePreviewModal } from '@/components/fichiers/FilePreviewModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { StorageSyncBanner } from '@/components/fichiers/StorageSyncBanner';
+import Link from 'next/link';
 
 const Sidebar = dynamic(() => import('@/components/Sidebar'), {
   ssr: false,
@@ -190,10 +192,20 @@ function FichiersPage() {
           />
 
           <div className="space-y-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Fichiers</h1>
-              <p className="text-gray-600">Gérez et importez vos fichiers de données</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Fichiers</h1>
+                <p className="text-gray-600">Gérez et importez vos fichiers de données</p>
+              </div>
+              <Link href="/fichiers/storage-sync">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <FileSync className="h-4 w-4" />
+                  Synchronisation Storage
+                </Button>
+              </Link>
             </div>
+
+            <StorageSyncBanner />
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="border-b border-gray-200">
