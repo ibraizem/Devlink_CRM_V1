@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import Sidebar from '@/components/Sidebar';
-import { createClient } from '@/lib/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { WebhookDeliveriesList } from '@/components/webhooks/WebhookDeliveriesList';
@@ -11,6 +11,7 @@ import { WebhookStats } from '@/components/webhooks/WebhookStats';
 import { Webhook, WebhookDelivery, WebhookStats as Stats } from '@/types/webhooks';
 
 export default function WebhookDeliveriesPage() {
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const params = useParams();
   const webhookId = params.id as string;
@@ -21,16 +22,15 @@ export default function WebhookDeliveriesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/auth/login');
-      }
-    };
-    checkAuth();
-    loadData();
-  }, [router, webhookId]);
+    if (isLoaded && !isSignedIn) {
+      router.push('/auth/login');
+      return;
+    }
+    
+    if (isSignedIn) {
+      loadData();
+    }
+  }, [isLoaded, isSignedIn, router, webhookId]);
 
   const loadData = async () => {
     try {

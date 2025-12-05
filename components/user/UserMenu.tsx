@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { User, Settings, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
-import { signOut } from '@/lib/types/auth';
+import { useClerk, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/types/utils';
 
@@ -21,6 +21,8 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { signOut } = useClerk();
+  const { user } = useUser();
 
   const menuItems: MenuItem[] = [
     {
@@ -45,7 +47,6 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
     },
   ];
 
-  // Fermer le menu quand on clique en dehors
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -58,6 +59,9 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur';
+  const userRole = (user?.publicMetadata?.role as string) || 'Administrateur';
 
   return (
     <div className="relative" ref={menuRef}>
@@ -77,8 +81,8 @@ export default function UserMenu({ isCollapsed = false }: UserMenuProps) {
         {!isCollapsed && (
           <div className="flex items-center flex-1 ml-3">
             <div className="text-left flex-1">
-              <div className="text-sm font-medium text-gray-800">Utilisateur</div>
-              <div className="text-xs text-gray-500">Administrateur</div>
+              <div className="text-sm font-medium text-gray-800">{userName}</div>
+              <div className="text-xs text-gray-500">{userRole}</div>
             </div>
             {isOpen ? (
               <ChevronUp className="w-4 h-4 text-gray-500 ml-2" />
