@@ -1,9 +1,21 @@
 // Table Components
 export { RawLeadsTable } from './RawLeadsTable';
+export { RawLeadsTableWithViews } from './RawLeadsTableWithViews';
 export { LeadsTableHeader } from './LeadsTableHeader';
 export { LeadsTableRow } from './LeadsTableRow';
 export { LeadsTableToolbar } from './LeadsTableToolbar';
 export { LeadsTableActionsMenu } from './LeadsTableActionsMenu';
+
+// View Management Components
+export { ViewManager } from './ViewManager';
+export { CreateViewDialog } from './CreateViewDialog';
+export { EditViewDialog } from './EditViewDialog';
+export { ShareViewDialog } from './ShareViewDialog';
+export { AdvancedViewDialog } from './AdvancedViewDialog';
+export { ViewConfigPanel } from './ViewConfigPanel';
+export { ColumnManager } from './ColumnManager';
+export { FilterBuilder } from './FilterBuilder';
+export { SortBuilder } from './SortBuilder';
 
 // Bulk Actions
 export { BulkActionsBar } from './BulkActionsBar';
